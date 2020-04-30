@@ -41,7 +41,7 @@ class Feeder:
         if self.is_Training and start_Epoch >= hp_Dict['Train']['Max_Epoch_without_Exclusion']:
             print('WARNING: The start epoch is greater than or equal to maximum epoch. Training mode turned off.')
             self.is_Training = False
-            
+        
         if self.is_Training:
             self.is_Finished = False
             self.Pattern_Metadata_Load()
@@ -336,20 +336,10 @@ class Feeder:
 
         test_Pattern_List = []
         for pattern_Batch in pattern_Batch_List:
-            acoustics = []
-            # acoustic_Steps = []
-
-            for path in pattern_Batch:                
-                pattern_Dict = patterns[path]
-                acoustics.append(pattern_Dict['Acoustic'])
-                # acoustic_Steps.append(pattern_Dict['Acoustic'].shape[0])
-
-            acoustics = self.Force_Pattern_Stack(acoustics, max_Step= max_Step).astype(np.float32)
-            # acoustic_Steps = np.stack(acoustic_Steps, axis= 0).astype(np.int32)
-
+            acoustics = [patterns[path] for path in pattern_Batch]
+            acoustics = self.Force_Pattern_Stack(acoustics, max_Step= max_Step).astype(np.float32)            
             test_Pattern_List.append({
                 'acoustics': acoustics,
-                # 'acoustic_Steps': acoustic_Steps,
                 })
 
         return test_Pattern_List

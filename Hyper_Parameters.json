@@ -3,7 +3,7 @@
         "Lexicon_File": "Pronunciation_Data_1K.New.txt",
         "Wav_Path": "D:/EARShot_Temp/WAV",
         "Pattern_Path": "D:/EARShot_Temp/Pattern",
-        "Metadata_File": "METADATA.PICKLE",
+        "Metadata_File": "METADATA.PICKLE",        
         
         "Acoustic": {
             "Mode": "Spectrogram",
@@ -26,13 +26,20 @@
             "Mode": "SRV",
             "SRV": {
                 "Size": 300,
-                "Assign_Number": 30
+                "Assign_Number": 10
             },
             "PGD": {
                 "Size": 300,
                 "Dict_File_Path": "Word2Vec.Paper1K.Kevin.pydb"
             }            
         }
+    },
+
+    "Hidden_Analysis": {
+        "Diphone_Wav_Path": "D:/Pattern/EARShot/Diphone_Wav",
+        "Phoneme_Feature": "./Phoneme_Feature.20200113.txt",
+        "Sensitivity_Index_Criteria": [0.2, 0.3, 0.01],
+        "Only_All": true
     },
 
     "Model": {
@@ -57,7 +64,7 @@
 
     "Train": {
         "Use_Pattern_Cache": true,
-        "Batch_Size": 10000,
+        "Batch_Size": 1000,
         "Learning_Rate": {
             "Use_Noam": true,
             "Initial": 1e-3,
@@ -70,12 +77,12 @@
             "Epsilon": 1e-7
         },
         "Test_Only_Identifier_List": ["JM", "EO"],
-        "Max_Epoch_with_Exclusion": 6000,
-        "Max_Epoch_without_Exclusion": 8000,
+        "Max_Epoch_with_Exclusion": 1500,
+        "Max_Epoch_without_Exclusion": 2000,
         "Max_Queue": 100,
         "Exclusion_Mode": "M",
-        "Checkpoint_Save_Timing": 1000,
-        "Test_Timing": 2000
+        "Checkpoint_Save_Timing": 500,
+        "Test_Timing": 500
     },
 
     "Use_Mixed_Precision": true,

@@ -34,7 +34,6 @@ class Analyzer:
         self.step_Cut = step_Cut
 
         self.Pattern_Metadata_Load()    # self.word_Index_Dict, self.step_Dict, self.max_Step, self.targets
-        self.Exclusion_Info_Dict_Load() # self.pattern_Type_Dict
         self.Category_Dict_Generate()   # self.category_Dict
         self.Adjusted_Length_Dict_Generate()    # self.adjusted_Length_Dict
         
@@ -278,22 +277,6 @@ class Analyzer:
             self.pattern_Metadata_Dict['Target_Dict'][word]
             for word, _ in sorted(list(self.word_Index_Dict.items()), key= lambda x: x[1])
             ]).astype(np.float32)
-
-    def Exclusion_Info_Dict_Load(self):
-        training_Metadata_File= os.path.join(hp_Dict['Result_Path'], 'Training_Metadta.pickle').replace('\\', '/')
-
-        with open(training_Metadata_File, 'rb') as f:
-            pattern_Path_Dict = pickle.load(f)
-        
-        pattern_Type_Dict = {
-            path: pattern_Type
-            for pattern_Type, path_Dict in pattern_Path_Dict.items() for (word, identifier), path in path_Dict.items()
-            }
-            
-        self.pattern_Type_Dict = {
-            (word, identifier): pattern_Type_Dict[path]
-            for (word, identifier), path in self.pattern_Metadata_Dict['Pattern_Path_Dict'].items()
-            }
 
     def Category_Dict_Generate(self):
         self.category_Dict = {}

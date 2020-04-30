@@ -19,10 +19,11 @@ class Prenet(tf.keras.layers.Layer):
                 kernel_size= kernel_size,
                 strides= stride,
                 padding= 'same',
-                activation= 'relu'
+                use_bias= not hp_Dict['Model']['Prenet']['Use_Batch_Normalization']
                 ))
             if hp_Dict['Model']['Prenet']['Use_Batch_Normalization']:
                 self.layer.add(tf.keras.layers.BatchNormalization())
+            self.layer.add(tf.keras.layers.ReLU())
             if hp_Dict['Model']['Prenet']['Dropout_Rate'] > 0.0:
                 self.layer.add(tf.keras.layers.Dropout(
                     rate= hp_Dict['Model']['Prenet']['Dropout_Rate'])
@@ -116,9 +117,9 @@ class Loss(tf.keras.layers.Layer):
             tf.expand_dims(labels, axis= 1),
             [1, tf.shape(logits)[1], 1]
             )
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(
-            labels= labels,
-            logits= logits
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(                     
+            labels= tf.cast(labels, dtype= tf.float32),
+            logits= tf.cast(logits, dtype= tf.float32)
             )
         loss *= tf.expand_dims(
             tf.sequence_mask(
@@ -127,9 +128,17 @@ class Loss(tf.keras.layers.Layer):
                 ),
             axis= -1
             )
-        loss_Sequence = tf.reduce_mean(loss, axis= [0, -1])
-        loss = tf.reduce_mean(loss)
         
+        loss_Sequence = tf.reduce_mean(loss, axis= -1)
+        loss_Sequence /= tf.math.count_nonzero(
+            loss_Sequence,
+            axis= 0,
+            keepdims= True,
+            dtype= loss_Sequence.dtype
+            )
+        loss_Sequence = tf.reduce_sum(loss_Sequence, axis= 0)
+
+        loss = tf.reduce_sum(tf.reduce_mean(loss, axis= -1))
 
         return loss, loss_Sequence
 
@@ -157,3 +166,4 @@ class NoamDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
             'warmup_steps': self.warmup_steps,
             'min_learning_rate': self.min_learning_rate
             }
+
