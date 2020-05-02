@@ -4,26 +4,25 @@ rm(list=ls())
 library(lme4) library(afex) library(ggplot2) library(tidyr) library(plyr) library(dplyr) 
 library(Rmisc) library(reshape) library(car)
 
-base_Dir <- 'F:/'
-talker_List <- c("Agnes", "Alex", "Bruce", "Fred", "Junior", "Kathy", "Princess", "Ralph", "Vicki", "Victoria")
-epoch_List <- c(600)
-hidden_Type <- 'LSTM'
-hidden_Unit <- 512
+base_Dir <- 'D:/Python_Programming/EARShot_TF2/Results'
+identifier_List <- c('AGNES')
+epoch_List <- c(4000)
 index <- 0
+
 
 for (epoch in epoch_List)
 {
-  for (talker in talker_List)
+  for (identifier in identifier_List)
   {
-    work_Dir <- sprintf('%sHT_%s.HU_%s.ET_%s.IDX_%s/Hidden_Analysis/E.%s/', base_Dir, hidden_Type, hidden_Unit, talker, index, epoch)
+    work_Dir <- file.path(base_Dir, paste(identifier, '.', 'IDX', index, sep=''), 'Hidden')
     
     theme_set(theme_classic(base_size=20))
     
     # RSA 1 : EARSHOT PSI RDM and Mesgarani PSI RDM ----
-    rsa01_actual <- read.csv(paste(work_Dir, 'Map.PSI/RSA/RSA.EARShot_to_Mesgarani.PSI.Actual.csv', sep=''),
+    rsa01_actual <- read.csv(file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARShot_to_Mesgarani.PSI.Actual.csv'),
                              header = TRUE, sep = ',', na.strings = "#N/A")
     
-    rsa01_shuffle <- read.csv(paste(work_Dir, 'Map.PSI/RSA/RSA.EARShot_to_Mesgarani.PSI.Shuffle.csv', sep=''),
+    rsa01_shuffle <- read.csv(file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARShot_to_Mesgarani.PSI.Shuffle.csv'),
                               header = TRUE, sep = ',', na.strings = "#N/A")
     
     p01_cosine <- 1-sum(rsa01_shuffle$cosine < rsa01_actual$cosine)/length(rsa01_shuffle$cosine)
@@ -39,7 +38,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa01_shuffle$cosine, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa01_actual$cosine,3)),
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.EARSHOT_to_Mesgarani.PSI.Cosine.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARSHOT_to_Mesgarani.PSI.Cosine.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -52,7 +51,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa01_shuffle$correlation, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa01_actual$correlation,3)),
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.EARSHOT_to_Mesgarani.PSI.Correlation.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARSHOT_to_Mesgarani.PSI.Correlation.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -65,15 +64,14 @@ for (epoch in epoch_List)
                y = max(table(round(rsa01_shuffle$euclidean, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa01_actual$euclidean,3)),
                fontface = 2, size = 5,  color = "#233DB3") 
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.EARSHOT_to_Mesgarani.PSI.Euclidean.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARSHOT_to_Mesgarani.PSI.Euclidean.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
     # RSA 2 : EARSHOT FSI RDM and Mesgarani FSI RDM ----
-    rsa02_actual <- read.csv(paste(work_Dir, 'Map.FSI/RSA/RSA.EARShot_to_Mesgarani.FSI.Actual.csv', sep=''),
+    rsa02_actual <- read.csv(file.path(work_Dir, 'Map', 'FSI', 'RSA', 'RSA.EARShot_to_Mesgarani.FSI.Actual.csv'),
                              header = TRUE, sep = ',', na.strings = "#N/A")
-    
-    rsa02_shuffle <- read.csv(paste(work_Dir, 'Map.FSI/RSA/RSA.EARShot_to_Mesgarani.FSI.Shuffle.csv', sep=''),
+    rsa02_shuffle <- read.csv(file.path(work_Dir, 'Map', 'FSI', 'RSA', 'RSA.EARShot_to_Mesgarani.FSI.Shuffle.csv'),
                               header = TRUE, sep = ',', na.strings = "#N/A")
     
     p02_cosine <- 1-sum(rsa02_shuffle$cosine < rsa02_actual$cosine)/length(rsa02_shuffle$cosine)
@@ -90,7 +88,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa02_shuffle$cosine, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa02_actual$cosine,3)), 
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.FSI/RSA/RSA.EARSHOT_to_Mesgarani.FSI.Cosine.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'FSI', 'RSA', 'RSA.EARSHOT_to_Mesgarani.FSI.Cosine.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -103,7 +101,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa02_shuffle$correlation, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa02_actual$correlation,3)), 
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.FSI/RSA/RSA.EARSHOT_to_Mesgarani.FSI.Correlation.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'FSI', 'RSA', 'RSA.EARSHOT_to_Mesgarani.FSI.Correlation.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -116,15 +114,17 @@ for (epoch in epoch_List)
                y = max(table(round(rsa02_shuffle$euclidean, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa02_actual$euclidean,3)), 
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.FSI/RSA/RSA.EARSHOT_to_Mesgarani.FSI.Euclidean.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'FSI', 'RSA', 'RSA.EARSHOT_to_Mesgarani.FSI.Euclidean.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
     # RSA 3 : EARSHOT PSI RDM and Phoneme Feature RDM ----
-    rsa03_actual <- read.csv(paste(work_Dir, 'Map.PSI/RSA/RSA.EARShot_to_Phoneme_Feature.PSI.Actual.csv', sep=''),
+    
+    rsa03_actual <- read.csv(file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARShot_to_Phoneme_Feature.PSI.Actual.csv'),
                              header = TRUE, sep = ',', na.strings = "#N/A")
     
-    rsa03_shuffle <- read.csv(paste(work_Dir, 'Map.PSI/RSA/RSA.EARShot_to_Mesgarani.PSI.Shuffle.csv', sep=''),
+    
+    rsa03_shuffle <- read.csv(file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARShot_to_Mesgarani.PSI.Shuffle.csv'),
                               header = TRUE, sep = ',', na.strings = "#N/A")
     
     p03_cosine <- 1-sum(rsa03_shuffle$cosine < rsa03_actual$cosine)/length(rsa03_shuffle$cosine)
@@ -142,7 +142,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa03_shuffle$cosine, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa03_actual$cosine,3)), 
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.EARSHOT_to_Phoneme_Feature.PSI.Cosine.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARSHOT_to_Phoneme_Feature.PSI.Cosine.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -156,7 +156,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa03_shuffle$correlation, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa03_actual$correlation,3)), 
                fontface = 2, size = 5,  color = "#233DB3") 
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.EARSHOT_to_Phoneme_Feature.PSI.Correlation.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARSHOT_to_Phoneme_Feature.PSI.Correlation.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -170,15 +170,14 @@ for (epoch in epoch_List)
                y = max(table(round(rsa03_shuffle$euclidean, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa03_actual$euclidean,3)), 
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.EARSHOT_to_Phoneme_Feature.PSI.Euclidean.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.EARSHOT_to_Phoneme_Feature.PSI.Euclidean.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
     # RSA 4 : Mesgarani PSI RDM and Phoneme Feature RDM ----
-    rsa04_actual <- read.csv(paste(work_Dir, 'Map.PSI/RSA/RSA.Phoneme_Feature_to_Mesgarani.PSI.Actual.csv', sep=''),
+    rsa04_actual <- read.csv(file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.Phoneme_Feature_to_Mesgarani.PSI.Actual.csv'),
                              header = TRUE, sep = ',', na.strings = "#N/A")
-    
-    rsa04_shuffle <- read.csv(paste(work_Dir, 'Map.PSI/RSA/RSA.Phoneme_Feature_to_Mesgarani.PSI.Shuffle.csv', sep=''),
+    rsa04_shuffle <- read.csv(file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.Phoneme_Feature_to_Mesgarani.PSI.Shuffle.csv'),
                               header = TRUE, sep = ',', na.strings = "#N/A")
     
     p04_cosine <- 1-sum(rsa04_shuffle$cosine < rsa04_actual$cosine)/length(rsa04_shuffle$cosine)
@@ -197,7 +196,7 @@ for (epoch in epoch_List)
                fontface = 2, size = 5,  color = "#233DB3")
     
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.Phoneme_Feature_to_EARSHOT.PSI.Cosine.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.Phoneme_Feature_to_EARSHOT.PSI.Cosine.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -211,7 +210,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa04_shuffle$correlation, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa04_actual$correlation,3)), 
                fontface = 2, size = 5,  color = "#233DB3")
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.Phoneme_Feature_to_EARSHOT.PSI.Correlation.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.Phoneme_Feature_to_EARSHOT.PSI.Correlation.png'),
            width = 10, height = 5, 
            bg = "transparent")
     
@@ -225,7 +224,7 @@ for (epoch in epoch_List)
                y = max(table(round(rsa04_shuffle$euclidean, 3))), hjust = 0, angle = 0, label = paste0("r = ", round(rsa04_actual$euclidean,3)), 
                fontface = 2, size = 5,  color = "#233DB3") 
     ggsave(plot = gpplot,
-           filename = paste(work_Dir, 'Map.PSI/RSA/RSA.Phoneme_Feature_to_EARSHOT.PSI.Euclidean.png', sep=''),
+           filename = file.path(work_Dir, 'Map', 'PSI', 'RSA', 'RSA.Phoneme_Feature_to_EARSHOT.PSI.Euclidean.png'),
            width = 10, height = 5, 
            bg = "transparent")
   }

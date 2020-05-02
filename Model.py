@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras.mixed_precision import experimental as mixed_precision
 import numpy as np
 import json, os, time, argparse, pickle
 from threading import Thread
@@ -20,20 +19,25 @@ with open('Hyper_Parameters.json', 'r') as f:
 if not hp_Dict['Device'] is None:
     os.environ['CUDA_VISIBLE_DEVICES']= hp_Dict['Device']
 
-if hp_Dict['Use_Mixed_Precision']:    
-    policy = mixed_precision.Policy('mixed_float16')
-else:
-    policy = mixed_precision.Policy('float32')
-mixed_precision.set_policy(policy)
-
 class EARShot:
-    def __init__(self, start_Epoch= 0, is_Training= False):
+    def __init__(
+        self,
+        start_Epoch= 0,
+        excluded_Identifier= None,
+        path= '',
+        is_Training= False
+        ):
+        self.result_Path = os.path.join(hp_Dict['Result_Path'], path).replace('\\', '/')
+
         self.feeder = Feeder(
             start_Epoch= start_Epoch,
-            is_Training= is_Training
+            path= path,
+            is_Training= is_Training,
+            excluded_Identifier= excluded_Identifier
             )
         if start_Epoch == 0:
             self.Export_Training_Metadata()
+        
 
         self.Model_Generate()
 
@@ -48,7 +52,7 @@ class EARShot:
             acoustic_Size = hp_Dict['Pattern']['Acoustic']['Mel']['Dimension']
         input_Dict['Acoustic'] = tf.keras.layers.Input(
             shape= [None, acoustic_Size],
-            dtype= tf.as_dtype(policy.compute_dtype)
+            dtype= tf.float32
             )
         input_Dict['Acoustic_Length'] = tf.keras.layers.Input(
             shape= [],
@@ -59,17 +63,17 @@ class EARShot:
             input_Dict['Previous_State'] = [
                 tf.keras.layers.Input(
                     shape= [hp_Dict['Model']['Hidden']['Size'],],
-                    dtype= tf.as_dtype(policy.compute_dtype)
+                    dtype= tf.float32
                     ),
                 tf.keras.layers.Input(
                     shape= [hp_Dict['Model']['Hidden']['Size'],],
-                    dtype= tf.as_dtype(policy.compute_dtype)
+                    dtype= tf.float32
                     )
                 ]
         elif hp_Dict['Model']['Hidden']['Type'].upper() in ['GRU', 'BPTT']:
             input_Dict['Previous_State'] = tf.keras.layers.Input(
                 shape= [hp_Dict['Model']['Hidden']['Size'],],
-                dtype= tf.as_dtype(policy.compute_dtype)
+                dtype= tf.float32
                 )
 
         if hp_Dict['Pattern']['Semantic']['Mode'].upper() == 'SRV':
@@ -78,7 +82,7 @@ class EARShot:
             semantic_Size = hp_Dict['Pattern']['Semantic']['PGD']['Size']
         input_Dict['Semantic'] = tf.keras.layers.Input(
             shape= [semantic_Size,],
-            dtype= tf.as_dtype(policy.compute_dtype)
+            dtype= tf.float32
             )
 
         layer_Dict['Network'] = Modules.Network()
@@ -188,7 +192,7 @@ class EARShot:
         return hiddens
 
     def Restore(self):
-        checkpoint_Path = os.path.join(hp_Dict['Result_Path'], 'Checkpoint', 'E_{}.CHECKPOINT.H5'.format(self.feeder.start_Epoch)).replace('\\', '/')
+        checkpoint_Path = os.path.join(self.result_Path, 'Checkpoint', 'E_{}.CHECKPOINT.H5'.format(self.feeder.start_Epoch)).replace('\\', '/')
         
         try:
             self.checkpoint.restore(checkpoint_Path)
@@ -201,20 +205,20 @@ class EARShot:
             print('Model is not run in the training mode.')
             return
 
-        os.makedirs(hp_Dict['Result_Path'], exist_ok= True)
+        os.makedirs(self.result_Path, exist_ok= True)
 
         def Save_Checkpoint(epoch):
-            os.makedirs(os.path.join(hp_Dict['Result_Path'], 'Checkpoint').replace('\\', '/'), exist_ok= True)
+            os.makedirs(os.path.join(self.result_Path, 'Checkpoint').replace('\\', '/'), exist_ok= True)
             path = self.checkpoint.save(
-                os.path.join(hp_Dict['Result_Path'], 'Checkpoint', 'E_{}.CHECKPOINT.H5'.format(epoch)).replace('\\', '/')
+                os.path.join(self.result_Path, 'Checkpoint', 'E_{}.CHECKPOINT.H5'.format(epoch)).replace('\\', '/')
                 )
             path = os.path.basename(path)
             
             # I hate use this rename method.......
-            for file in os.listdir(os.path.join(hp_Dict['Result_Path'], 'Checkpoint').replace('\\', '/')):
+            for file in os.listdir(os.path.join(self.result_Path, 'Checkpoint').replace('\\', '/')):
                 if not file.startswith(path):
                     continue
-                file = os.path.join(hp_Dict['Result_Path'], 'Checkpoint', file).replace('\\', '/')
+                file = os.path.join(self.result_Path, 'Checkpoint', file).replace('\\', '/')
                 new_File = file.replace(path, path[:path.rfind('-')])
                 
                 if os.path.exists(new_File):
@@ -230,7 +234,8 @@ class EARShot:
 
             if is_New_Epoch:
                 if epoch % (hp_Dict['Train']['Checkpoint_Save_Timing']) == 0:
-                    Save_Checkpoint(epoch)
+                    if epoch == 0 or epoch > self.feeder.start_Epoch:
+                        Save_Checkpoint(epoch)
                 if epoch % (hp_Dict['Train']['Test_Timing']) == 0:
                     Run_Test(epoch)
 
@@ -257,7 +262,7 @@ class EARShot:
             print('\t\t'.join(display_List))
             print('\t'.join(['{:0.5f}'.format(x) for x in loss_Sequence.numpy()]))
 
-            with open(os.path.join(hp_Dict['Result_Path'], 'log.txt').replace('\\', '/'), 'a') as f:
+            with open(os.path.join(self.result_Path, 'log.txt').replace('\\', '/'), 'a') as f:
                 f.write('\t'.join([
                 '{:0.3f}'.format(time.time() - start_Time),
                 '{}'.format(self.optimizer.iterations.numpy()),
@@ -297,7 +302,7 @@ class EARShot:
         return export_Thread
 
     def Export_Test(self, infos, logits, epoch):
-        os.makedirs(os.path.join(hp_Dict['Result_Path'], 'Test').replace('\\', '/'), exist_ok= True)
+        os.makedirs(os.path.join(self.result_Path, 'Test').replace('\\', '/'), exist_ok= True)
 
         for start_Index in range(0, len(infos), hp_Dict['Train']['Batch_Size']):
             result_Dict = {}
@@ -309,26 +314,33 @@ class EARShot:
                 epoch > hp_Dict['Train']['Max_Epoch_with_Exclusion'] and \
                 epoch <= hp_Dict['Train']['Max_Epoch_without_Exclusion']    #The results need to be judged if they are contaminated with excluded pattern. Determine if the model has been exposed to the excluded pattern.
                 
-            with open(os.path.join(hp_Dict['Result_Path'], 'Test', 'E_{:06d}.I_{:09d}.pickle'.format(epoch, start_Index)).replace('\\', '/'), 'wb') as f:
+            with open(os.path.join(self.result_Path, 'Test', 'E_{:06d}.I_{:09d}.pickle'.format(epoch, start_Index)).replace('\\', '/'), 'wb') as f:
                 pickle.dump(result_Dict, f, protocol=4)
 
     def Export_Training_Metadata(self):
-        os.makedirs(hp_Dict['Result_Path'], exist_ok= True)
+        os.makedirs(self.result_Path, exist_ok= True)
 
-        with open(os.path.join(hp_Dict['Result_Path'], 'Hyper_Parameters.json').replace('\\', '/'), 'w') as f:
+        with open(os.path.join(self.result_Path, 'Hyper_Parameters.json').replace('\\', '/'), 'w') as f:
                 json.dump(hp_Dict, f, indent= 4)
 
-        with open(os.path.join(hp_Dict['Result_Path'], 'Training_Metadta.pickle').replace('\\', '/'), 'wb') as f:
+        with open(os.path.join(self.result_Path, 'Training_Metadta.pickle').replace('\\', '/'), 'wb') as f:
             pickle.dump(self.feeder.pattern_Path_Dict, f, protocol=4)
 
 
 if __name__ == '__main__':
     argParser = argparse.ArgumentParser()
-    argParser.add_argument('-e', '--epoch', default= 0, type= int)
+    argParser.add_argument('-se', '--start_epoch', default= 0, type= int)
+    argParser.add_argument('-ei', '--excluded_identifier', default= None, type= str)
+    argParser.add_argument('-d', '--directory', default= '', type= str)
     argument_Dict = vars(argParser.parse_args())
 
-    new_Model = EARShot(is_Training= True, start_Epoch= argument_Dict['epoch'])
-    if argument_Dict['epoch'] > 0:
+    new_Model = EARShot(
+        is_Training= True,
+        start_Epoch= argument_Dict['start_epoch'],
+        excluded_Identifier= argument_Dict['excluded_identifier'],
+        path= argument_Dict['directory']
+        )
+    if argument_Dict['start_epoch'] > 0:
         new_Model.Restore()
     new_Model.Train()
     

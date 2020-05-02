@@ -8,15 +8,15 @@ with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)
 
 #Global constants
-with open(hp_Dict['Pattern']['Lexicon_File'], "r") as f:
+with open(hp_Dict['Pattern']['Lexicon_File'], 'r') as f:
     lines = f.readlines()
     pronunciation_Dict = {
-        word.upper(): pronunciation.split(".")
-        for word, pronunciation in [line.strip().split("\t") for line in lines]
+        word.upper(): pronunciation.split('.')
+        for word, pronunciation in [line.strip().split('\t') for line in lines]
         }
     using_Word_List = list(pronunciation_Dict.keys())
     
-if hp_Dict['Pattern']['Semantic']['Mode'].upper() == "SRV":
+if hp_Dict['Pattern']['Semantic']['Mode'].upper() == 'SRV':
     semantic_Index_Dict = {}
     for word in using_Word_List:
         unit_List = list(range(hp_Dict['Pattern']['Semantic']['SRV']['Size']))
@@ -32,7 +32,7 @@ if hp_Dict['Pattern']['Semantic']['Mode'].upper() == "SRV":
         for unit_Index in index_Set:
             new_Semantic_Pattern[unit_Index] = 1
         semantic_Dict[word] = new_Semantic_Pattern
-elif hp_Dict['Pattern']['Semantic']['Mode'].upper() == "PGD":
+elif hp_Dict['Pattern']['Semantic']['Mode'].upper() == 'PGD':
     with open(hp_Dict['Pattern']['Semantic']['PGD']['Dict_File_Path'], 'rb') as f:
         semantic_Dict = {
             word.upper(): pattern
@@ -56,12 +56,12 @@ def Pattern_File_Geneate(
     voice_File_Path,
     ):
     new_Pattern_Dict = {
-        "Word": word,
-        "Pronunciation": pronunciation,
-        "Identifier": identifier
+        'Word': word,
+        'Pronunciation': pronunciation,
+        'Identifier': identifier
         }
     
-    if hp_Dict['Pattern']['Acoustic']['Mode'].upper() == "Spectrogram".upper():
+    if hp_Dict['Pattern']['Acoustic']['Mode'].upper() == 'Spectrogram'.upper():
         sig = librosa.core.load(
             voice_File_Path,
             sr = hp_Dict['Pattern']['Acoustic']['Spectrogram']['Sample_Rate']
@@ -78,8 +78,8 @@ def Pattern_File_Geneate(
             frame_length_ms= hp_Dict['Pattern']['Acoustic']['Spectrogram']['Frame_Length'],
             sample_rate= hp_Dict['Pattern']['Acoustic']['Spectrogram']['Sample_Rate'],
             )
-        new_Pattern_Dict["Acoustic"] = np.transpose(spec).astype(np.float32)    # [Time, Dim]
-    elif hp_Dict['Pattern']['Acoustic']['Mode'].upper() == "Mel".upper():
+        new_Pattern_Dict['Acoustic'] = np.transpose(spec).astype(np.float32)    # [Time, Dim]
+    elif hp_Dict['Pattern']['Acoustic']['Mode'].upper() == 'Mel'.upper():
         sig = librosa.core.load(
             voice_File_Path,
             sr = hp_Dict['Pattern']['Acoustic']['Mel']['Sample_Rate']
@@ -98,18 +98,18 @@ def Pattern_File_Geneate(
             sample_rate= hp_Dict['Pattern']['Acoustic']['Mel']['Sample_Rate'],
             max_abs_value= hp_Dict['Pattern']['Acoustic']['Mel']['Max_Abs']
             )
-        new_Pattern_Dict["Acoustic"] = np.transpose(mel).astype(np.float32)
+        new_Pattern_Dict['Acoustic'] = np.transpose(mel).astype(np.float32)
     else:
         assert False
 
-    new_Pattern_Dict["Semantic"] = semantic_Dict[word].astype(np.float32)
+    new_Pattern_Dict['Semantic'] = semantic_Dict[word].astype(np.float32)
     
-    pattern_File_Name = os.path.split(voice_File_Path)[1].replace(os.path.splitext(voice_File_Path)[1], ".pickle").upper()
+    pattern_File_Name = os.path.split(voice_File_Path)[1].replace(os.path.splitext(voice_File_Path)[1], '.pickle').upper()
     
-    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], pattern_File_Name).replace("\\", "/"), "wb") as f:
+    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], pattern_File_Name).replace('\\', '/'), 'wb') as f:
         pickle.dump(new_Pattern_Dict, f, protocol= 4)
 
-    print("{}\t->\t{}".format(voice_File_Path, pattern_File_Name))
+    print('{}\t->\t{}'.format(voice_File_Path, pattern_File_Name))
 
 
 def Metadata_Generate():
@@ -117,94 +117,94 @@ def Metadata_Generate():
 
     #Although we use the hyper parameter now, I insert several information about that for checking consistency.
     new_Metadata_Dict = {        
-        "Hyper_Parameter_Dict": hp_Dict['Pattern']
+        'Hyper_Parameter_Dict': hp_Dict['Pattern']
         }
 
-    new_Metadata_Dict["Pronunciation_Dict"] = pronunciation_Dict   #key: word, value: pronunciation
-    new_Metadata_Dict["Pattern_Path_Dict"] = {}    #key: (word, identifier), value: pattern_Path
-    new_Metadata_Dict["Word_and_Identifier_Dict"] = {}     #key: pattern_Path, value: (word, identifier) #Reversed of pattern_Path_Dict
-    new_Metadata_Dict["Step_Dict"] = {}     #key: pattern_Path, value: pattern step
+    new_Metadata_Dict['Pronunciation_Dict'] = pronunciation_Dict   #key: word, value: pronunciation
+    new_Metadata_Dict['Pattern_Path_Dict'] = {}    #key: (word, identifier), value: pattern_Path
+    new_Metadata_Dict['Word_and_Identifier_Dict'] = {}     #key: pattern_Path, value: (word, identifier) #Reversed of pattern_Path_Dict
+    new_Metadata_Dict['Step_Dict'] = {}     #key: pattern_Path, value: pattern step
     for root, _, files in os.walk(hp_Dict['Pattern']['Pattern_Path']):
         for file in files:
-            if file.upper() == "Metadata.pickle".upper():
+            if file.upper() == 'Metadata.pickle'.upper():
                 continue
-            with open(os.path.join(root, file).replace("\\", "/"), "rb") as f:
+            with open(os.path.join(root, file).replace('\\', '/'), 'rb') as f:
                 pattern_Dict = pickle.load(f)
-            new_Metadata_Dict["Pattern_Path_Dict"][pattern_Dict["Word"], pattern_Dict["Identifier"]] = file
-            new_Metadata_Dict["Word_and_Identifier_Dict"][file] = (pattern_Dict["Word"], pattern_Dict["Identifier"])
-            new_Metadata_Dict["Step_Dict"][file] = pattern_Dict["Acoustic"].shape[0]
+            new_Metadata_Dict['Pattern_Path_Dict'][pattern_Dict['Word'], pattern_Dict['Identifier']] = file
+            new_Metadata_Dict['Word_and_Identifier_Dict'][file] = (pattern_Dict['Word'], pattern_Dict['Identifier'])
+            new_Metadata_Dict['Step_Dict'][file] = pattern_Dict['Acoustic'].shape[0]
 
-    new_Metadata_Dict["Target_Dict"] ={word: semantic_Dict[word] for word in using_Word_List}
+    new_Metadata_Dict['Target_Dict'] ={word: semantic_Dict[word] for word in using_Word_List}
 
-    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], "METADATA.PICKLE").replace("\\", "/"), "wb") as f:
+    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], 'METADATA.PICKLE').replace('\\', '/'), 'wb') as f:
         pickle.dump(new_Metadata_Dict, f, protocol= 4)
 
 
-def Metadata_Subset_Generate(word_List = None, identifier_List = None, metadata_File_Name = "METADATA.SUBSET.PICKLE"):
+def Metadata_Subset_Generate(word_List = None, identifier_List = None, metadata_File_Name = 'METADATA.SUBSET.PICKLE'):
     if not word_List is None:
         word_List = [x.upper() for x in word_List]
     if not identifier_List is None:
         identifier_List = [x.upper() for x in identifier_List]    
 
-    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], "METADATA.PICKLE").replace("\\", "/"), "rb") as f:
+    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], 'METADATA.PICKLE').replace('\\', '/'), 'rb') as f:
         metadata_Dict = pickle.load(f)
 
     new_Metadata_Dict = {}
-    new_Metadata_Dict["Hyper_Parameter_Dict"] = metadata_Dict["Hyper_Parameter_Dict"]
-    new_Metadata_Dict["Pronunciation_Dict"] = metadata_Dict["Pronunciation_Dict"]
+    new_Metadata_Dict['Hyper_Parameter_Dict'] = metadata_Dict['Hyper_Parameter_Dict']
+    new_Metadata_Dict['Pronunciation_Dict'] = metadata_Dict['Pronunciation_Dict']
         
     if not word_List is None:
         word_Filtered_Pattern_Path_List = [
             pattern_Path
-            for pattern_Path, (word, identifier) in metadata_Dict["Word_and_Identifier_Dict"].items()
+            for pattern_Path, (word, identifier) in metadata_Dict['Word_and_Identifier_Dict'].items()
             if word in word_List
             ]
     else:
         word_Filtered_Pattern_Path_List = [
             pattern_Path
-            for pattern_Path, (word, identifier) in metadata_Dict["Word_and_Identifier_Dict"].items()
+            for pattern_Path, (word, identifier) in metadata_Dict['Word_and_Identifier_Dict'].items()
             ]
 
     if not identifier_List is None:
         identifier_Filtered_Pattern_Path_List = [
             pattern_Path
-            for pattern_Path, (word, identifier) in metadata_Dict["Word_and_Identifier_Dict"].items()
+            for pattern_Path, (word, identifier) in metadata_Dict['Word_and_Identifier_Dict'].items()
             if identifier in identifier_List
             ]
     else:
         identifier_Filtered_Pattern_Path_List = [
             pattern_Path
-            for pattern_Path, (word, identifier) in metadata_Dict["Word_and_Identifier_Dict"].items()
+            for pattern_Path, (word, identifier) in metadata_Dict['Word_and_Identifier_Dict'].items()
             ]
     
-    new_Metadata_Dict["Pattern_Path_Dict"] = {
+    new_Metadata_Dict['Pattern_Path_Dict'] = {
         (word, identifier): pattern_Path
-        for (word, identifier), pattern_Path in metadata_Dict["Pattern_Path_Dict"].items()
+        for (word, identifier), pattern_Path in metadata_Dict['Pattern_Path_Dict'].items()
         if pattern_Path in word_Filtered_Pattern_Path_List and pattern_Path in identifier_Filtered_Pattern_Path_List
         }
 
-    new_Metadata_Dict["Word_and_Identifier_Dict"] = {
+    new_Metadata_Dict['Word_and_Identifier_Dict'] = {
         pattern_Path: (word, identifier)
-        for pattern_Path, (word, identifier) in metadata_Dict["Word_and_Identifier_Dict"].items()
+        for pattern_Path, (word, identifier) in metadata_Dict['Word_and_Identifier_Dict'].items()
         if pattern_Path in word_Filtered_Pattern_Path_List and pattern_Path in identifier_Filtered_Pattern_Path_List
         }
 
-    new_Metadata_Dict["Step_Dict"] = {
+    new_Metadata_Dict['Step_Dict'] = {
         pattern_Path: step
-        for pattern_Path, step in metadata_Dict["Step_Dict"].items()
+        for pattern_Path, step in metadata_Dict['Step_Dict'].items()
         if pattern_Path in word_Filtered_Pattern_Path_List and pattern_Path in identifier_Filtered_Pattern_Path_List
         }
 
     if not word_List is None:
-        new_Metadata_Dict["Target_Dict"] = {
+        new_Metadata_Dict['Target_Dict'] = {
             word: target_Pattern
-            for word, target_Pattern in metadata_Dict["Target_Dict"].items()
+            for word, target_Pattern in metadata_Dict['Target_Dict'].items()
             if word in word_List
             }
     else:
-        new_Metadata_Dict["Target_Dict"] = metadata_Dict["Target_Dict"]
+        new_Metadata_Dict['Target_Dict'] = metadata_Dict['Target_Dict']
     
-    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], metadata_File_Name).replace("\\", "/"), "wb") as f:
+    with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], metadata_File_Name).replace('\\', '/'), 'wb') as f:
         pickle.dump(new_Metadata_Dict, f, protocol= 4)
 
 
@@ -249,6 +249,6 @@ if __name__ == '__main__':
 
     # Example
     Metadata_Subset_Generate(
-        identifier_List= ["Agnes", "Alex", 'Allison', 'Ava',  "Bruce", "Fred", "Junior", "Kathy", "Princess", "Ralph", 'Samantha', 'Susan', 'Tom', "Vicki", "Victoria"],
-        metadata_File_Name = "METADATA.1KW.15T.PICKLE"
+        identifier_List= ['Agnes', 'Alex', 'Allison', 'Ava',  'Bruce', 'Fred', 'Junior', 'Kathy', 'Princess', 'Ralph', 'Samantha', 'Susan', 'Tom', 'Vicki', 'Victoria'],
+        metadata_File_Name = 'METADATA.1KW.15T.PICKLE'
         )

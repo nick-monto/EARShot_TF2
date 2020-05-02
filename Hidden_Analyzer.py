@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras.mixed_precision import experimental as mixed_precision
 import numpy as np
 import os, argparse, pickle, json
 
@@ -12,19 +11,14 @@ with open('Hyper_Parameters.json', 'r') as f:
 if not hp_Dict['Device'] is None:
     os.environ['CUDA_VISIBLE_DEVICES']= hp_Dict['Device']
 
-if hp_Dict['Use_Mixed_Precision']:    
-    policy = mixed_precision.Policy('mixed_float16')
-else:
-    policy = mixed_precision.Policy('float32')
-mixed_precision.set_policy(policy)
-
 class Hidden_Analyzer:
-    def __init__(self, epoch):
+    def __init__(self, path, epoch):
+        self.result_Path = os.path.join(hp_Dict['Result_Path'], path).replace('\\', '/')
         self.epoch = epoch
 
         self.Feature_Load()
         self.Wav_Load()
-        self.Model_Load()
+        self.Model_Load(path)
 
         self.Activation_Dict_Generate()        
 
@@ -144,8 +138,8 @@ class Hidden_Analyzer:
                             if not hp_Dict['Hidden_Analysis']['Only_All']:
                                 self.feature_File_List_Dict[feature, identifier].append(path)
 
-    def Model_Load(self):
-        self.model = EARShot(start_Epoch= self.epoch, is_Training= False)
+    def Model_Load(self, path):
+        self.model = EARShot(path= path, start_Epoch= self.epoch, is_Training= False)
         self.model.Restore()
 
 
@@ -179,7 +173,7 @@ class Hidden_Analyzer:
     def Export_Flow(self):
         self._Flow_Dict_Generate()
 
-        phone_Flow_Path = os.path.join(hp_Dict['Result_Path'], 'Hidden', 'Flow', 'Phone', 'TXT').replace('\\', '/')
+        phone_Flow_Path = os.path.join(self.result_Path, 'Hidden', 'Flow', 'Phone', 'TXT').replace('\\', '/')
         os.makedirs(phone_Flow_Path, exist_ok= True)
         for identifier, flows in self.flow_Dict['Phone'].items():
             for unit_Index, unit_Flows in enumerate(flows):
@@ -187,11 +181,11 @@ class Hidden_Analyzer:
                 for phone, phone_Flows in zip(self.phone_List, unit_Flows):
                     export_List.append('\t'.join([self.phoneme_Label_Dict[phone]] + ['{:.5f}'.format(x) for x in phone_Flows]))
                 
-                file_Name = '{}.U_{}.I_{}.txt'.format('Phone', unit_Index, identifier)
+                file_Name = '{}.U_{:04d}.I_{}.txt'.format('Phone', unit_Index, identifier)
                 with open(os.path.join(phone_Flow_Path, file_Name).replace('\\', '/'), 'w', encoding='utf-8') as f:
                     f.write("\n".join(export_List))
 
-        feature_Flow_Path = os.path.join(hp_Dict['Result_Path'], 'Hidden', 'Flow', 'Feature', 'TXT').replace('\\', '/')
+        feature_Flow_Path = os.path.join(self.result_Path, 'Hidden', 'Flow', 'Feature', 'TXT').replace('\\', '/')
         os.makedirs(feature_Flow_Path, exist_ok= True)
         for identifier, flows in self.flow_Dict['Feature'].items():
             for unit_Index, unit_Flows in enumerate(flows):
@@ -228,7 +222,7 @@ class Hidden_Analyzer:
     def Export_Map(self):
         self._Map_Dict_Generate()
 
-        psi_Map_Path = os.path.join(hp_Dict['Result_Path'], 'Hidden', 'Map', 'PSI', 'TXT').replace('\\', '/')
+        psi_Map_Path = os.path.join(self.result_Path, 'Hidden', 'Map', 'PSI', 'TXT').replace('\\', '/')
         os.makedirs(psi_Map_Path, exist_ok= True)
         for (identifier, criterion), maps in self.map_Dict['Phone'].items():
             export_List = ['\t'.join(['Phone'] + ['{}'.format(unit_Index) for unit_Index in range(maps.shape[1])])]
@@ -240,7 +234,7 @@ class Hidden_Analyzer:
                     f.write("\n".join(export_List))
 
 
-        fsi_Map_Path = os.path.join(hp_Dict['Result_Path'], 'Hidden', 'Map', 'FSI', 'TXT').replace('\\', '/')
+        fsi_Map_Path = os.path.join(self.result_Path, 'Hidden', 'Map', 'FSI', 'TXT').replace('\\', '/')
         os.makedirs(fsi_Map_Path, exist_ok= True)
         for (identifier, criterion), maps in self.map_Dict['Feature'].items():
             export_List = ['\t'.join(['Feature'] + ['{}'.format(unit_Index) for unit_Index in range(maps.shape[1])])]
@@ -259,15 +253,17 @@ class Hidden_Analyzer:
 
         identifiers = ['ALL'] if hp_Dict['Hidden_Analysis']['Only_All'] else (self.identifier_List + ['ALL'])
         criteria = np.arange(
-            start= hp_Dict['Hidden_Analysis']['Sensitivity_Index_Criteria'][0],
-            stop= hp_Dict['Hidden_Analysis']['Sensitivity_Index_Criteria'][1] + hp_Dict['Hidden_Analysis']['Sensitivity_Index_Criteria'][2],
-            step= hp_Dict['Hidden_Analysis']['Sensitivity_Index_Criteria'][2],
+            start= hp_Dict['Hidden_Analysis']['Sensitive_Index']['Criteria'][0],
+            stop= hp_Dict['Hidden_Analysis']['Sensitive_Index']['Criteria'][1] + hp_Dict['Hidden_Analysis']['Sensitive_Index']['Criteria'][2],
+            step= hp_Dict['Hidden_Analysis']['Sensitive_Index']['Criteria'][2],
             )
 
         progress_Index = 0
         for identifier in identifiers:
             averages = np.stack([
-                np.mean(self.activation_Dict['Phone'][phone, identifier], axis= (0, 1)) # [File_Nums, Time, Dim] -> [Dim]
+                np.mean(self.activation_Dict['Phone'][phone, identifier][
+                    hp_Dict['Hidden_Analysis']['Sensitive_Index']['Step_Range'][0]:hp_Dict['Hidden_Analysis']['Sensitive_Index']['Step_Range'][1]
+                    ], axis= (0, 1)) # [File_Nums, Time, Dim] -> [Dim]
                 for phone in self.phone_List
                 ], axis= 1) # [Dim, Phone_Nums]
             for criterion in criteria:
@@ -298,8 +294,8 @@ class Hidden_Analyzer:
 
     @tf.function
     def _Map_Calc(self, averages, criterion):
-        averages = tf.convert_to_tensor(averages, dtype= tf.as_dtype(policy.compute_dtype))
-        criterion = tf.convert_to_tensor(criterion, dtype= tf.as_dtype(policy.compute_dtype))
+        averages = tf.convert_to_tensor(averages, dtype= tf.float32)
+        criterion = tf.convert_to_tensor(criterion, dtype= tf.float32)
 
         tiled_Averages = tf.tile( #The activation array is tiled for 2D calculation.
             tf.expand_dims(averages, axis=1),
@@ -317,9 +313,13 @@ class Hidden_Analyzer:
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
+    argParser.add_argument('-d', '--directory', default= '', type= str)
     argParser.add_argument('-e', '--epoch', required= True, type= int)
     argument_Dict = vars(argParser.parse_args())
 
-    new_Hidden_Analyzer = Hidden_Analyzer(epoch = argument_Dict['epoch'])
+    new_Hidden_Analyzer = Hidden_Analyzer(
+        path= argument_Dict['directory'],
+        epoch = argument_Dict['epoch']
+        )
     new_Hidden_Analyzer.Export_Flow()
     new_Hidden_Analyzer.Export_Map()

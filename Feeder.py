@@ -14,9 +14,12 @@ class Feeder:
     def __init__(
         self,
         start_Epoch,
+        path,
         is_Training= False,
         excluded_Identifier= None
         ):
+        self.result_Path = os.path.join(hp_Dict['Result_Path'], path).replace('\\', '/')
+
         self.is_Training = is_Training
         self.start_Epoch = start_Epoch
         self.Pattern_Metadata_Load()
@@ -140,7 +143,7 @@ class Feeder:
         raise ValueError('Unsupported exclusion mode \'{}\'. Mode must be one of [P, I, M, None(null)].'.format(hp_Dict['Train']['Exclusion_Mode'].upper()))
 
     def Exclusion_Info_Dict_Load(self):
-        training_Metadata_File= os.path.join(hp_Dict['Result_Path'], 'Training_Metadta.pickle').replace("\\", "/")
+        training_Metadata_File= os.path.join(self.result_Path, 'Training_Metadta.pickle').replace("\\", "/")
 
         with open(training_Metadata_File, 'rb') as f:
             self.pattern_Path_Dict = pickle.load(f)

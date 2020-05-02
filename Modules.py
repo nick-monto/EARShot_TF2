@@ -118,8 +118,8 @@ class Loss(tf.keras.layers.Layer):
             [1, tf.shape(logits)[1], 1]
             )
         loss = tf.nn.sigmoid_cross_entropy_with_logits(                     
-            labels= tf.cast(labels, dtype= tf.float32),
-            logits= tf.cast(logits, dtype= tf.float32)
+            labels= labels,
+            logits= logits
             )
         loss *= tf.expand_dims(
             tf.sequence_mask(

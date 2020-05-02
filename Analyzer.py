@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras.mixed_precision import experimental as mixed_precision
 import numpy as np
 import os, io, gc, json
 import _pickle as pickle
@@ -13,21 +12,17 @@ with open('Hyper_Parameters.json', 'r') as f:
 if not hp_Dict['Device'] is None:
     os.environ['CUDA_VISIBLE_DEVICES']= hp_Dict['Device']
 
-if hp_Dict['Use_Mixed_Precision']:    
-    policy = mixed_precision.Policy('mixed_float16')
-else:
-    policy = mixed_precision.Policy('float32')
-mixed_precision.set_policy(policy)
-
-
 class Analyzer:
     def __init__(
         self,
+        path,
         absolute_Criterion= 0.7,
         relative_Criterion= 0.05,
         time_Dependency_Criterion= (10, 0.05),
         step_Cut= True
         ):
+        self.result_Path = os.path.join(hp_Dict['Result_Path'], path).replace('\\', '/')
+
         self.absolute_Criterion = absolute_Criterion
         self.relative_Criterion = relative_Criterion
         self.time_Dependency_Criterion = time_Dependency_Criterion
@@ -41,8 +36,8 @@ class Analyzer:
 
     def Analysis(self, batch_Steps= 200):
         result_File_List = sorted([ #Result files sorting
-            os.path.join(hp_Dict['Result_Path'], 'Test', x).replace('\\', '/')
-            for x in os.listdir(os.path.join(hp_Dict['Result_Path'], 'Test').replace('\\', '/'))
+            os.path.join(self.result_Path, 'Test', x).replace('\\', '/')
+            for x in os.listdir(os.path.join(self.result_Path, 'Test').replace('\\', '/'))
             if x.endswith('.pickle') and x != 'Metadata.pickle'
             ])
 
@@ -78,7 +73,7 @@ class Analyzer:
                 'Rhyme_N',
                 'Neighborhood_N',
                 'Category',
-                'Category_Count'
+                'Category_Count',
                 'Accuracy'
             ] + list(range(self.max_Step))])]
         for result_File in result_File_List:
@@ -143,9 +138,9 @@ class Analyzer:
                     )
             print()
 
-        with open(os.path.join(hp_Dict['Result_Path'], 'Test', 'RTs.txt').replace('\\', '/'), 'w') as f:
+        with open(os.path.join(self.result_Path, 'Test', 'RTs.txt').replace('\\', '/'), 'w') as f:
             f.write('\n'.join(reaction_Times))
-        with open(os.path.join(hp_Dict['Result_Path'], 'Test', 'Category_Flows.txt').replace('\\', '/'), 'w') as f:
+        with open(os.path.join(self.result_Path, 'Test', 'Category_Flows.txt').replace('\\', '/'), 'w') as f:
             f.write('\n'.join(category_Flows))
 
 
@@ -169,8 +164,8 @@ class Analyzer:
         output: [Steps, Dims]
         self.targets: [Num_Words, Dims]
         '''
-        output = tf.convert_to_tensor(output, dtype= tf.as_dtype(policy.compute_dtype))
-        targets = tf.convert_to_tensor(self.targets, dtype= tf.as_dtype(policy.compute_dtype))
+        output = tf.convert_to_tensor(output, dtype= tf.float32)
+        targets = tf.convert_to_tensor(self.targets, dtype= tf.float32)
 
         tiled_Output = tf.tile(
             tf.expand_dims(output, [0]),
@@ -355,4 +350,21 @@ class Analyzer:
 
 
 if __name__ == '__main__':
-    new_Analyzer = Analyzer()
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument('-d', '--directory', default= '', type= str)
+    argParser.add_argument('-a', '--absolute', default= 0.7, type= float)
+    argParser.add_argument('-r', '--relative', default= 0.05, type= float)
+    argParser.add_argument('-tw', '--time_dependency_width', default= 10, type= float)
+    argParser.add_argument('-th', '--time_dependency_height', default= 0.05, type= float)
+    argument_Dict = vars(argParser.parse_args())
+
+    new_Analyzer = Analyzer(
+        path= argument_Dict['directory'],
+        absolute_Criterion= argument_Dict['absolute'],
+        relative_Criterion= argument_Dict['relative'],
+        time_Dependency_Criterion= (
+            argument_Dict['time_dependency_width'],
+            argument_Dict['time_dependency_height']
+            ),
+        step_Cut= True
+        )

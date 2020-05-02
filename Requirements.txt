@@ -1,0 +1,2 @@
+tensorflow-gpu >= 2.2.0rc4
+librosa >= 0.7.2

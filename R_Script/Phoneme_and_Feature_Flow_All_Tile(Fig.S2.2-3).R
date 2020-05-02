@@ -2,8 +2,16 @@ Sort_Reference_by_PSI <- function(path){
   library(readr)
   library(ggdendro)
   
-  map_Data <- read_delim(path, "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)[,-1]
-  rownames(map_Data) <- rownames(read.table(file=path, row.names = 1, header = TRUE, encoding="UTF-8"))
+  map_Data <- read_delim(
+    path,
+    delim= '\t',
+    escape_double = FALSE,
+    locale = locale(encoding = "UTF-8"),
+    trim_ws = TRUE)
+  map_Data.row_Name <- as.matrix(map_Data[1])
+  map_Data <- map_Data[,-1]
+  rownames(map_Data) <- map_Data.row_Name
+  
   
   x <- as.matrix(scale(map_Data))
   x[x=="NaN"] = 0
@@ -19,34 +27,38 @@ library(gridExtra)
 library(readr)
 library(viridis)
 
-base_Dir <- 'F:/'
-talker_List <- c("Agnes", "Alex", "Bruce", "Fred", "Junior", "Kathy", "Princess", "Ralph", "Vicki", "Victoria")
-epoch_List <- c(600)
-hidden_Type <- 'LSTM'
+base_Dir <- 'D:/Python_Programming/EARShot_TF2/Results'
+identifier_List <- c('AGNES')
+epoch_List <- c(4000)
 hidden_Unit <- 512
 index <- 0
-reference_PSI_Epoch <- 600
-reference_PSI_Criterion <- 0.0
+reference_PSI_Criterion <- 0.30
 
 for (epoch in epoch_List)
 {
-  for (talker in talker_List)
+  for (identifier in identifier_List)
   {
-    sorted_Unit_Index_List <- Sort_Reference_by_PSI(sprintf(
-      '%sHT_%s.HU_%s.ET_%s.IDX_%s/Hidden_Analysis/E.%s/Map.PSI/TXT/W_(5,15).Normal.PSI.C_%s.D_Positive.T_All.txt',
-      base_Dir, hidden_Type, hidden_Unit, talker, index, reference_PSI_Epoch, format(reference_PSI_Criterion, nsmall=2)
-      ))
+    work_Dir <- file.path(base_Dir, paste(identifier, '.', 'IDX', index, sep=''), 'Hidden')
     
-    work_Dir <- sprintf('%sHT_%s.HU_%s.ET_%s.IDX_%s/Hidden_Analysis/E.%s/', base_Dir, hidden_Type, hidden_Unit, talker, index, epoch)
-    start_Window <- 0
-    end_Window <- 35
-    for (flow_Type in c("Phoneme", "Feature"))
+    sorted_Unit_Index_List <- Sort_Reference_by_PSI(
+      file.path(work_Dir, "Map", 'PSI', "TXT", paste('PSI.C_', format(reference_PSI_Criterion, nsmall=2), '.I_ALL.txt', sep= ''))
+      )
+    
+    for (flow_Type in c("Phone", "Feature"))
     {
       plot_List <- list()
       for (unit_Index in sorted_Unit_Index_List)
       {
-        flow_Data <- read_delim(paste(work_Dir, "Flow.", flow_Type, "/TXT/W_(", start_Window,",", end_Window,").", flow_Type, ".U_", unit_Index, ".T_All.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)[,-1]
-        rownames(flow_Data) <- rownames(read.table(file=paste(work_Dir, "Flow.", flow_Type, "/TXT/W_(", start_Window,",", end_Window,").", flow_Type, ".U_", unit_Index, ".T_All.txt", sep=""), row.names = 1, header = TRUE, encoding="UTF-8"))
+        flow_Data <- read_delim(
+          file.path(work_Dir,'Flow', flow_Type, 'TXT', paste(flow_Type, '.U_', sprintf('%04d', unit_Index), '.I_ALL.txt', sep='')),
+          delim= "\t",
+          escape_double = FALSE,
+          locale = locale(encoding = "UTF-8"),
+          trim_ws = TRUE
+        )
+        flow_Data.row_Name <- as.matrix(flow_Data[1])
+        flow_Data <- abs(flow_Data[,-1])
+        rownames(flow_Data) <- flow_Data.row_Name
         
         mean_Flow_Data <- colMeans(flow_Data)
         mean_Flow_Data <- as.data.frame(mean_Flow_Data)
@@ -91,14 +103,14 @@ for (epoch in epoch_List)
         plot_List[[length(plot_List) + 1]] <- plot
       }
       
-      if (!dir.exists(paste(work_Dir, "Flow.", flow_Type, "/PNG.Tile", sep="")))
+      if (!dir.exists(file.path(work_Dir,'Flow', flow_Type, 'PNG.Tile')))
       {
-        dir.create(paste(work_Dir, "Flow.", flow_Type, "/PNG.Tile", sep=""))
+        dir.create(file.path(work_Dir,'Flow', flow_Type, 'PNG.Tile'))
       }
       
       margin = theme(plot.margin = unit(c(-0.02,-0.05,-0.02,-0.05), "cm"))
       ggsave(
-        filename = sprintf('%sFlow.%s/PNG.Tile/%s.Flow_Tile.png', work_Dir, flow_Type, flow_Type),
+        filename = file.path(work_Dir,'Flow', flow_Type, 'PNG.Tile', paste(flow_Type, '.Flow_Tile.png', sep='')),
         plot = grid.arrange(grobs = lapply(plot_List[1:length(sorted_Unit_Index_List)], "+", margin), ncol=21),
         device = "png",
         width = 21.6,

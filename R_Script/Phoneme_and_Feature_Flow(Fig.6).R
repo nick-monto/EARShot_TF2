@@ -7,33 +7,42 @@ library(readr)
 library(viridis)
 library(cowplot)
 
-base_Dir <- 'F:/'
-talker_List <- c("Agnes", "Alex", "Bruce", "Fred", "Junior", "Kathy", "Princess", "Ralph", "Vicki", "Victoria")
-epoch_List <- c(600)
-hidden_Type <- 'LSTM'
+base_Dir <- 'D:/Python_Programming/EARShot_TF2/Results'
+identifier_List <- c('AGNES')
+epoch_List <- c(4000)
 hidden_Unit <- 512
 index <- 0
 
+
+
 for (epoch in epoch_List)
 {
-  for (talker in talker_List)
+  for (identifier in identifier_List)
   {
-    work_Dir <- sprintf('%sHT_%s.HU_%s.ET_%s.IDX_%s/Hidden_Analysis/E.%s/', base_Dir, hidden_Type, hidden_Unit, talker, index, epoch)
+    work_Dir <- file.path(base_Dir, paste(identifier, '.', 'IDX', index, sep=''), 'Hidden')
     
-    start_Window <- 0
-    end_Window <- 35
-    for (flow_Type in c("Phoneme", "Feature"))
-    {
-      if (!dir.exists(paste(work_Dir, "Flow.", flow_Type, "/PNG", sep="")))
+    #for (flow_Type in c("Phone", "Feature"))
+    for (flow_Type in c("Feature"))
+    { 
+      if (!dir.exists(file.path(work_Dir,'Flow', flow_Type, 'PNG')))
       {
-        dir.create(paste(work_Dir, "Flow.", flow_Type, "/PNG", sep=""))
+        dir.create(file.path(work_Dir,'Flow', flow_Type, 'PNG'))
       }
       
       plot_List <- list()
       for (unit_Index in seq(0, hidden_Unit - 1, 1))
       {
-        flow_Data <- read_delim(paste(work_Dir, "Flow.", flow_Type, "/TXT/W_(", start_Window,",", end_Window,").", flow_Type, ".U_", unit_Index, ".T_All.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)[,-1]
-        rownames(flow_Data) <- rownames(read.table(file=paste(work_Dir, "Flow.", flow_Type, "/TXT/W_(", start_Window,",", end_Window,").", flow_Type, ".U_", unit_Index, ".T_All.txt", sep=""), row.names = 1, header = TRUE, encoding="UTF-8"))
+        flow_Data <- read_delim(
+          file.path(work_Dir,'Flow', flow_Type, 'TXT', paste(flow_Type, '.U_', sprintf('%04d', unit_Index), '.I_ALL.txt', sep='')),
+          delim= "\t",
+          escape_double = FALSE,
+          locale = locale(encoding = "UTF-8"),
+          trim_ws = TRUE
+          )
+        flow_Data.row_Name <- as.matrix(flow_Data[1])
+        flow_Data <- abs(flow_Data[,-1])
+        rownames(flow_Data) <- flow_Data.row_Name
+        
         
         mean_Flow_Data <- colMeans(flow_Data)
         mean_Flow_Data <- as.data.frame(mean_Flow_Data)
@@ -63,7 +72,7 @@ for (epoch in epoch_List)
             labels = ylabels,
             sec.axis = dup_axis()
           ) +
-          labs(title=sprintf('Phoneme flow    Unit: %s', unit_Index), x= 'Time (ms)', y= flow_Type, fill="") +
+          labs(title=sprintf('%s flow    Unit: %s', flow_Type, unit_Index), x= 'Time (ms)', y= flow_Type, fill="") +
           theme(
             title = element_text(size=20),
             axis.title.x = element_text(size=20),
@@ -79,13 +88,13 @@ for (epoch in epoch_List)
             panel.grid=element_blank()
           )
         
-        if (flow_Type == "Phoneme")
+        if (flow_Type == "Phone")
         {
           ggsave(
-            filename = paste(work_Dir, "Flow.", flow_Type, "/PNG/W_(", start_Window,",", end_Window,").", flow_Type, ".U_", unit_Index, ".T_All.png", sep=""),
+            filename = file.path(work_Dir,'Flow', flow_Type, 'PNG', paste(flow_Type, '.U_', sprintf('%04d', unit_Index), '.I_ALL.png', sep='')),
             plot = plot,
             device = "png",
-            width = 15,
+            width = 25,
             height = 25,
             units = "cm",
             dpi = 300
@@ -94,10 +103,10 @@ for (epoch in epoch_List)
         if (flow_Type == "Feature")
         {
           ggsave(
-            filename = paste(work_Dir, "Flow.", flow_Type, "/PNG/W_(", start_Window,",", end_Window,").", flow_Type, ".U_", unit_Index, ".T_All.png", sep=""),
+            filename = file.path(work_Dir,'Flow', flow_Type, 'PNG', paste(flow_Type, '.U_', sprintf('%04d', unit_Index), '.I_ALL.png', sep='')),
             plot = plot,
             device = "png",
-            width = 20,
+            width = 30,
             height = 25, #10,
             units = "cm",
             dpi = 300

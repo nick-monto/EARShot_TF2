@@ -3,7 +3,7 @@
         "Lexicon_File": "Pronunciation_Data_1K.New.txt",
         "Wav_Path": "D:/EARShot_Temp/WAV",
         "Pattern_Path": "D:/EARShot_Temp/Pattern",
-        "Metadata_File": "METADATA.PICKLE",        
+        "Metadata_File": "METADATA.PICKLE",
         
         "Acoustic": {
             "Mode": "Spectrogram",
@@ -37,8 +37,12 @@
 
     "Hidden_Analysis": {
         "Diphone_Wav_Path": "D:/Pattern/EARShot/Diphone_Wav",
-        "Phoneme_Feature": "./Phoneme_Feature.20200113.txt",
-        "Sensitivity_Index_Criteria": [0.2, 0.3, 0.01],
+        "Phoneme_Feature": "./Phoneme_Feature.Paper.txt",
+        "Sensitive_Index": {
+            "Criteria": [0.0, 0.5, 0.05],
+            "Step_Range": [5, 15]
+        },
+        
         "Only_All": true
     },
 
@@ -55,10 +59,6 @@
             "Type": "LSTM",
             "Size": 512,
             "No_Reset_State": true
-        },
-        "Weight_Regularization": {
-            "Use": false,
-            "Rate": 1e-6
         }
     },
 
@@ -77,16 +77,14 @@
             "Epsilon": 1e-7
         },
         "Test_Only_Identifier_List": ["JM", "EO"],
-        "Max_Epoch_with_Exclusion": 1500,
-        "Max_Epoch_without_Exclusion": 2000,
+        "Max_Epoch_with_Exclusion": 4000,
+        "Max_Epoch_without_Exclusion": 6000,
         "Max_Queue": 100,
         "Exclusion_Mode": "M",
-        "Checkpoint_Save_Timing": 500,
-        "Test_Timing": 500
+        "Checkpoint_Save_Timing": 1000,
+        "Test_Timing": 1000
     },
 
-    "Use_Mixed_Precision": true,
     "Result_Path": "./Results",
-    "Split_Result_Size": true,
     "Device": "0"
 }
