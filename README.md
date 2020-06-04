@@ -157,8 +157,8 @@ Magnuson, J.S., You, H., Luthra, S., Li, M., Nam, H., Escabí, M., Brown, K., Al
         * Set ADAM optimizer parameters.
     * Test_Only_Identifier_List
         * Determines which talkers are always excluded regardless of the exclusion mode.
-        * If nothing, `null`
-        * Ex: ['EO', 'JM'] or `null`
+        * If nothing, `[]`
+        * Ex: ['EO', 'JM'] or `[]`
     * Max_Epoch_with_Exclusion
         * Apply 'Exclusion_Mode' and learn to set epoch.
     * Max_Epoch_without_Exclusion
