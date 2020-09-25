@@ -37,7 +37,7 @@ class EARShot:
             )
         if start_Epoch == 0:
             self.Export_Training_Metadata()
-        
+
 
         self.Model_Generate()
 
@@ -58,7 +58,7 @@ class EARShot:
             shape= [],
             dtype= tf.as_dtype(tf.int32)
             )
-        
+
         if hp_Dict['Model']['Hidden']['Type'].upper() == 'LSTM':
             input_Dict['Previous_State'] = [
                 tf.keras.layers.Input(
@@ -86,9 +86,17 @@ class EARShot:
             )
 
         layer_Dict['Network'] = Modules.Network()
-        layer_Dict['Loss'] = Modules.Loss()
 
-        
+        # sets loss function and output nonlinearity - sigmoid for {0,1} targets,
+        #   tanh for [-1,1] targets
+        if hp_Dict['Train']['Loss'] == "L2":
+            layer_Dict['Loss'] = Modules.L2Loss()
+            self.output_trans = tf.nn.tanh
+        else:
+            layer_Dict['Loss'] = Modules.CELoss()
+            self.output_trans = tf.nn.sigmoid
+
+
         if hp_Dict['Model']['Prenet']['Use']:
             layer_Dict['Prenet'] = Modules.Prenet()
             tensor_Dict['Prenet'] = layer_Dict['Prenet'](input_Dict['Acoustic'])
@@ -133,9 +141,9 @@ class EARShot:
                 ],
             outputs= tensor_Dict['Hidden']
             )
-        
+
         self.model_Dict['Train'].summary()
-        
+
         if hp_Dict['Train']['Learning_Rate']['Use_Noam']:
             learning_Rate = Modules.NoamDecay(
                 initial_learning_rate= hp_Dict['Train']['Learning_Rate']['Initial'],
@@ -145,12 +153,20 @@ class EARShot:
         else:
             learning_Rate = hp_Dict['Train']['Learning_Rate']['Initial']
 
-        self.optimizer = tf.keras.optimizers.Adam(
-            learning_rate= learning_Rate,
-            beta_1= hp_Dict['Train']['ADAM']['Beta1'],
-            beta_2= hp_Dict['Train']['ADAM']['Beta2'],
-            epsilon= hp_Dict['Train']['ADAM']['Epsilon']
+        if hp_Dict['Train']['Mode'] == 'ADAM':
+            self.optimizer = tf.keras.optimizers.Adam(
+                learning_rate= learning_Rate,
+                beta_1= hp_Dict['Train']['ADAM']['Beta1'],
+                beta_2= hp_Dict['Train']['ADAM']['Beta2'],
+                epsilon= hp_Dict['Train']['ADAM']['Epsilon']
+                )
+        else:
+            self.optimizer = tf.keras.optimizers.SGD(
+                learning_rate = learning_Rate,
+                momentum = hp_Dict['Train']['SGD']['Momentum'],
+                nesterov = hp_Dict['Train']['SGD']['Nesterov']
             )
+
         self.checkpoint = tf.train.Checkpoint(optimizer= self.optimizer, model= self.model_Dict['Train'])
 
         self.get_Initial_Hidden_State = layer_Dict['Network'].get_initial_state
@@ -168,7 +184,7 @@ class EARShot:
             )
 
         self.optimizer.apply_gradients([
-            (gradient, variable)            
+            (gradient, variable)
             for gradient, variable in zip(gradients, self.model_Dict['Train'].trainable_variables)
             ])
 
@@ -179,7 +195,12 @@ class EARShot:
             inputs= [acoustics, self.get_Initial_Hidden_State()],
             training= False
             )
-        results = tf.nn.sigmoid(logits)
+        # this is very hacktastic right now; need to fix this so it's in the
+        #   options file (you also have to change the loss function below!) (KB)
+        # -USE THIS LINE FOR BINARY TARGETS-
+        results = self.output_trans(logits)
+        # -USE THIS LINE FOR CTS TARGETS-
+        #results = tf.nn.tanh(logits)
 
         return results
 
@@ -193,7 +214,7 @@ class EARShot:
 
     def Restore(self):
         checkpoint_Path = os.path.join(self.result_Path, 'Checkpoint', 'E_{}.CHECKPOINT.H5'.format(self.feeder.start_Epoch)).replace('\\', '/')
-        
+
         try:
             self.checkpoint.restore(checkpoint_Path)
             print('Checkpoint \'{}\' is loaded.'.format(checkpoint_Path))
@@ -213,18 +234,18 @@ class EARShot:
                 os.path.join(self.result_Path, 'Checkpoint', 'E_{}.CHECKPOINT.H5'.format(epoch)).replace('\\', '/')
                 )
             path = os.path.basename(path)
-            
+
             # I hate use this rename method.......
             for file in os.listdir(os.path.join(self.result_Path, 'Checkpoint').replace('\\', '/')):
                 if not file.startswith(path):
                     continue
                 file = os.path.join(self.result_Path, 'Checkpoint', file).replace('\\', '/')
                 new_File = file.replace(path, path[:path.rfind('-')])
-                
+
                 if os.path.exists(new_File):
                     os.remove(new_File)
                 os.rename(file, new_File)
-           
+
         def Run_Test(epoch):
             return self.Test(epoch)
 
@@ -280,7 +301,7 @@ class EARShot:
 
     def Test(self, epoch):
         infos, pattern_List = self.feeder.Get_Test_Pattern()
-        
+
         logits = []
         for batch_Index, patterns in enumerate(pattern_List):
             logits.append(self.Test_Step(**patterns).numpy())
@@ -313,7 +334,7 @@ class EARShot:
             result_Dict['Exclusion_Ignoring'] = \
                 epoch > hp_Dict['Train']['Max_Epoch_with_Exclusion'] and \
                 epoch <= hp_Dict['Train']['Max_Epoch_without_Exclusion']    #The results need to be judged if they are contaminated with excluded pattern. Determine if the model has been exposed to the excluded pattern.
-                
+
             with open(os.path.join(self.result_Path, 'Test', 'E_{:06d}.I_{:09d}.pickle'.format(epoch, start_Index)).replace('\\', '/'), 'wb') as f:
                 pickle.dump(result_Dict, f, protocol=4)
 
@@ -343,4 +364,3 @@ if __name__ == '__main__':
     if argument_Dict['start_epoch'] > 0:
         new_Model.Restore()
     new_Model.Train()
-    
