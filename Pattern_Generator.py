@@ -132,6 +132,9 @@ def Metadata_Generate():
                 continue
             with open(os.path.join(root, file).replace('\\', '/'), 'rb') as f:
                 pattern_Dict = pickle.load(f)
+            if not all([(key in pattern_Dict.keys()) for key in ['Word', 'Identifier', 'Acoustic']]):
+                print('File \'{}\' is not correct pattern. This file is ignored.'.format(file))
+                continue
             new_Metadata_Dict['Pattern_Path_Dict'][pattern_Dict['Word'], pattern_Dict['Identifier']] = file
             new_Metadata_Dict['Word_and_Identifier_Dict'][file] = (pattern_Dict['Word'], pattern_Dict['Identifier'])
             new_Metadata_Dict['Step_Dict'][file] = pattern_Dict['Acoustic'].shape[0]
