@@ -1,7 +1,5 @@
-import tensorflow as tf
-import numpy as np
+import tensorflow as tf,numpy as np,pandas as pd,_pickle as pickle
 import os, io, gc, json
-import _pickle as pickle
 import argparse
 
 from ProgressBar import progress
@@ -31,8 +29,90 @@ class Analyzer:
         self.Pattern_Metadata_Load()    # self.word_Index_Dict, self.step_Dict, self.max_Step, self.targets
         self.Category_Dict_Generate()   # self.category_Dict
         self.Adjusted_Length_Dict_Generate()    # self.adjusted_Length_Dict
-        
+
         self.Analysis()
+
+        self.parse_rt_file()
+        self.parse_cf_file()
+
+
+    def parse_rt_file(self):
+        '''
+        Reads the "RTs" file produced by EARShot and creates an Epoch-Accuracy
+        file for onset- and off-set relative, absolute, and time-dependent
+        accuracies.
+
+        If everyone is going to use python to look at this data anyway, we might
+        as well just save the data dict as a pickle and avoid all the re-parsing.
+        (KB,9/24/20)
+        '''
+        acc_file = os.path.join(self.result_Path, 'Test', 'RTs.txt').replace('\\', '/')
+        data = pd.read_csv(acc_file,sep='\t')
+        # dictionary to hold the results
+        acc_data = {}.fromkeys(data.columns[10:].values)
+        epochs = list(np.unique(data["Epoch"]))
+        for meas in acc_data:
+            acc_data[meas] = {}.fromkeys(np.unique(data["Epoch"]))
+
+        for e in epochs:
+            subframe = data[data["Epoch"] == e]
+            for meas in acc_data:
+                n_wrong = subframe[meas].isnull().sum()
+                n_total = len(subframe[meas])
+                acc_data[meas][e] = (n_total - n_wrong)/n_total
+
+        # dump the results
+        col_order = ['Epoch']+list(acc_data.keys())
+        f = open(os.path.join(self.result_Path, 'Test', 'ACC.txt').replace('\\', '/'), 'w')
+        # header
+        h_string = ','.join([k for k in col_order])+'\n'
+        f.write(h_string)
+        # data
+        for e in epochs:
+            w_s = ','.join([str(e)]+[str(acc_data[k][e]) for k in col_order[1:]])+'\n'
+            f.write(w_s)
+        f.close()
+
+
+    def parse_cf_file(self):
+        '''
+        Reads the "Category_Flows" file produced by EARShot and creates average
+        similarities over (recurrent model) time to target, cohort, rhymes, and
+        unrelated words in the lexicon, for each checkpointed epoch.
+
+        I'm not handling speakers/word/etc. at all right now - this just
+        averages over every correct target response in every epoch.
+
+        If everyone is going to use python to look at this data anyway, we might
+        as well just save the data dict as a pickle and avoid all the re-parsing.
+        (KB,9/24/20)
+        '''
+        cf_file = os.path.join(self.result_Path, 'Test', 'Category_Flows.txt').replace('\\', '/')
+        data = pd.read_csv(cf_file,sep='\t')
+
+        # set up the dictionary to hold the results
+        cat_data = {}.fromkeys(np.unique(data["Epoch"]))
+        # there's nothing useful in the zero-epoch set
+        cat_data.pop(0)
+        for e in cat_data:
+            cat_data[e] = {}.fromkeys(np.unique(data["Category"]))
+
+        # now accumulate stats for all epochs > 0; ignore any incorrect responses
+        for e in cat_data:
+            epoch = data[(data["Epoch"] == e) & (data["Accuracy"] == True)]
+            # appropriate selections
+            for c in cat_data[e]:
+                mean_series = epoch[epoch['Category'] == c].mean()
+                cat_data[e][c] = mean_series.values[13:]
+
+        # now dump the results
+        f = open(os.path.join(self.result_Path, 'Test', 'CS.txt').replace('\\', '/'), 'w')
+        for e in cat_data:
+            for c in cat_data[e]:
+                w_s = ','.join([str(e),c]+[str(x) for x in cat_data[e][c]])
+                f.write(w_s+'\n')
+        f.close()
+
 
     def Analysis(self, batch_Steps= 200):
         result_File_List = sorted([ #Result files sorting
@@ -82,7 +162,7 @@ class Analyzer:
             epoch = result_Dict['Epoch']
             infos = result_Dict['Info']
             outputs = result_Dict['Result'] #[Batch, Steps, Dims]
-            
+
             for index, (output, (word, identifier, pattern_Type)) in enumerate(zip(outputs, infos)):
                 data = self.Data_Generate(output, word, identifier, batch_Steps) #[Num_Words, Steps]
                 rt_Dict = self.RT_Generate(word, identifier, data)
@@ -107,7 +187,7 @@ class Analyzer:
                         rt_Dict['Offset', 'Time_Dependent']
                         ]])
                     )
-                
+
                 for category in ["Target", "Cohort", "Rhyme", "Unrelated", "Other_Max"]:
                     if category == "Other_Max":
                         category_Count = np.nan
@@ -195,7 +275,7 @@ class Analyzer:
         target_Index = self.word_Index_Dict[word]
         target_Array = data[target_Index]
         other_Max_Array = np.max(np.delete(data, target_Index, 0), axis=0)  #Target is removed, and using the max value of each time step.
-            
+
         #Absolute threshold RT
         if not (other_Max_Array > self.absolute_Criterion).any():
             absolute_Check_Array = target_Array > self.absolute_Criterion
@@ -205,7 +285,7 @@ class Analyzer:
                     break
 
         #Relative threshold RT
-        relative_Check_Array = target_Array > (other_Max_Array + self.relative_Criterion)            
+        relative_Check_Array = target_Array > (other_Max_Array + self.relative_Criterion)
         for step in range(self.max_Step):
             if relative_Check_Array[step]:
                 rt_Dict['Onset', 'Relative'] = step
@@ -240,13 +320,13 @@ class Analyzer:
 
     def Category_Flow_Generate(self, word, data):   #For categorized flow
         category_Flow_Dict = {}
-        
+
         for category in ['Target', 'Cohort', 'Rhyme', 'Unrelated']:
             if len(self.category_Dict[word, category]) > 0:
                 category_Flow_Dict[category] = np.mean(data[self.category_Dict[word, category],:], axis=0) #Calculation mean of several same category flows.
             else:
                 category_Flow_Dict[category] = np.zeros((data.shape[1])) * np.nan   # If there is no word which is belonged a specific category, nan value.
-                
+
         category_Flow_Dict['All'] = np.mean(data, axis=0)
         category_Flow_Dict['Other_Max'] = np.max(np.delete(data, self.word_Index_Dict[word], 0), axis=0)   #Target is removed, and using the max value of each time step.
 
