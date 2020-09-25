@@ -17,14 +17,16 @@
   - convert to `python` module
   - better/standardized formatting (CB)
   - ~~integrate `github` with Slack~~
-  - `excluded_Identifier`: can you useit to leave out a talker AND/OR a word (e.g.
-    leave out all of Ava's items, or all instances of YELP, or AVA_YELP)?
+  - `excluded_Identifier`: can you useit to leave out a talker AND/OR a word (e.g. leave out all of Ava's items, or all instances of YELP, or AVA_YELP)?
   - add docstrings to methods/classes
   - `sphinx` for automatic documentation generation (CB)
   - add tests (via `pytest`)
   - add everyone to R drive or lab NAS for big file storage (JM)
   - set long-term goals, e.g. commenting, keras-izing (ALL)
   - items for Gaskell/Marslen-Wilson semantic blends (JM)
+  - de-hackify switch between L2/tanh and cross-ent/sigmoid (KB) : N.B. I've done this but I can't test it because damn librosa broke somehow when my new machines
+  were setup - scipy
+  - using a single json file is confusing since it mixes pattern generation, model running, and analysis options together. these should be separated
 
 ## Under Discussion:
 
