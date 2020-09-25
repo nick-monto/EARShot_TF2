@@ -1,3 +1,4 @@
+
 # EARShot_TF2
 
 The EARShot model on Tensorflow 2
@@ -8,8 +9,8 @@ The EARShot model on Tensorflow 2
 
 ## Paper
 
-Magnuson, J.S., You, H., Luthra, S., Li, M., Nam, H., Escabí, M., Brown, K., Allopenna, P.D., Theodore, R.M., Monto, N., & Rueckl, J.G. (2020). EARSHOT: A minimal neural network model of incremental human speech recognition. Cognitive Science, 44, e12823. http://dx.doi.org/10.1111/cogs.12823 -- 
-[PDF](https://magnuson.psy.uconn.edu/wp-content/uploads/sites/1140/2020/04/EARSHOT_cogsci_2020.pdf) -- 
+Magnuson, J.S., You, H., Luthra, S., Li, M., Nam, H., Escabí, M., Brown, K., Allopenna, P.D., Theodore, R.M., Monto, N., & Rueckl, J.G. (2020). EARSHOT: A minimal neural network model of incremental human speech recognition. Cognitive Science, 44, e12823. http://dx.doi.org/10.1111/cogs.12823 --
+[PDF](https://magnuson.psy.uconn.edu/wp-content/uploads/sites/1140/2020/04/EARSHOT_cogsci_2020.pdf) --
 [Supplmentary materials](https://magnuson.psy.uconn.edu/wp-content/uploads/sites/1140/2020/04/earshot_CS_brief_report_REV_2020.04.10_supp.pdf)
 
 
@@ -43,7 +44,7 @@ Magnuson, J.S., You, H., Luthra, S., Li, M., Nam, H., Escabí, M., Brown, K., Al
     * Metadata_File        
         * The metadata file name.
         * Default is 'METADATA.PICKLE'
-        
+
     * Acoutsic
         * Mode
             * Determine which type of acoustic pattern use.
@@ -53,7 +54,7 @@ Magnuson, J.S., You, H., Luthra, S., Li, M., Nam, H., Escabí, M., Brown, K., Al
             * Sample_Rate            
             * Dimension
             * Frame_Length
-            * Frame_Shift 
+            * Frame_Shift
         * Mel
             * This parameters are used only `Mode` == `Mel`
                 * Sample_Rate
@@ -64,8 +65,8 @@ Magnuson, J.S., You, H., Luthra, S., Li, M., Nam, H., Escabí, M., Brown, K., Al
                 * Max_Abs
                     * If a positive float, pattern is symetric `-Max_Abs` to `Max_Abs`
                     * If 'null', non symmetric '0 to 1'.
-        
-        
+
+
     * Semantic
         * Mode
             * Determine which type of semantic pattern use.
@@ -179,7 +180,7 @@ Magnuson, J.S., You, H., Luthra, S., Li, M., Nam, H., Escabí, M., Brown, K., Al
     * Test_Timing
         * Determine the frequency of the inference during learning.
         * A positive integer is required.
-    
+
 * Result_Path
     * Determine result and checkpoint save path
 * Device

@@ -15,7 +15,7 @@ with open(hp_Dict['Pattern']['Lexicon_File'], 'r') as f:
         for word, pronunciation in [line.strip().split('\t') for line in lines]
         }
     using_Word_List = list(pronunciation_Dict.keys())
-    
+
 if hp_Dict['Pattern']['Semantic']['Mode'].upper() == 'SRV':
     semantic_Index_Dict = {}
     for word in using_Word_List:
@@ -38,12 +38,14 @@ elif hp_Dict['Pattern']['Semantic']['Mode'].upper() == 'PGD':
             word.upper(): pattern
             for word, pattern in pickle.load(f).items()
             if word.upper() in using_Word_List
-            }        
-    pattern_Min, pattern_Max = np.inf, -np.inf
-    for pattern in semantic_Dict.values():
-        pattern_Min =  np.minimum(pattern_Min, np.min(pattern))
-        pattern_Max =  np.maximum(pattern_Max, np.max(pattern))
-    semantic_Dict = {word: (pattern - pattern_Min) / (pattern_Max - pattern_Min) for word, pattern in semantic_Dict.items()}
+            }
+    # This is not a good idea; if you want to treat the semantic vectors this way, you should pre-process the
+    #   dictionary first
+    #pattern_Min, pattern_Max = np.inf, -np.inf
+    #for pattern in semantic_Dict.values():
+    #    pattern_Min =  np.minimum(pattern_Min, np.min(pattern))
+    #    pattern_Max =  np.maximum(pattern_Max, np.max(pattern))
+    #semantic_Dict = {word: (pattern - pattern_Min) / (pattern_Max - pattern_Min) for word, pattern in semantic_Dict.items()}
 
     if len(semantic_Dict) < len(using_Word_List):
         raise ValueError('Some words are not in pre generated dict. {} : {}'.format(len(semantic_Dict), len(using_Word_List)))
@@ -60,7 +62,7 @@ def Pattern_File_Geneate(
         'Pronunciation': pronunciation,
         'Identifier': identifier
         }
-    
+
     if hp_Dict['Pattern']['Acoustic']['Mode'].upper() == 'Spectrogram'.upper():
         sig = librosa.core.load(
             voice_File_Path,
@@ -103,9 +105,9 @@ def Pattern_File_Geneate(
         assert False
 
     new_Pattern_Dict['Semantic'] = semantic_Dict[word].astype(np.float32)
-    
+
     pattern_File_Name = os.path.split(voice_File_Path)[1].replace(os.path.splitext(voice_File_Path)[1], '.pickle').upper()
-    
+
     with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], pattern_File_Name).replace('\\', '/'), 'wb') as f:
         pickle.dump(new_Pattern_Dict, f, protocol= 4)
 
@@ -116,7 +118,7 @@ def Metadata_Generate():
     new_Metadata_Dict = {}
 
     #Although we use the hyper parameter now, I insert several information about that for checking consistency.
-    new_Metadata_Dict = {        
+    new_Metadata_Dict = {
         'Hyper_Parameter_Dict': hp_Dict['Pattern']
         }
 
@@ -144,7 +146,7 @@ def Metadata_Subset_Generate(word_List = None, identifier_List = None, metadata_
     if not word_List is None:
         word_List = [x.upper() for x in word_List]
     if not identifier_List is None:
-        identifier_List = [x.upper() for x in identifier_List]    
+        identifier_List = [x.upper() for x in identifier_List]
 
     with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], 'METADATA.PICKLE').replace('\\', '/'), 'rb') as f:
         metadata_Dict = pickle.load(f)
@@ -152,7 +154,7 @@ def Metadata_Subset_Generate(word_List = None, identifier_List = None, metadata_
     new_Metadata_Dict = {}
     new_Metadata_Dict['Hyper_Parameter_Dict'] = metadata_Dict['Hyper_Parameter_Dict']
     new_Metadata_Dict['Pronunciation_Dict'] = metadata_Dict['Pronunciation_Dict']
-        
+
     if not word_List is None:
         word_Filtered_Pattern_Path_List = [
             pattern_Path
@@ -176,7 +178,7 @@ def Metadata_Subset_Generate(word_List = None, identifier_List = None, metadata_
             pattern_Path
             for pattern_Path, (word, identifier) in metadata_Dict['Word_and_Identifier_Dict'].items()
             ]
-    
+
     new_Metadata_Dict['Pattern_Path_Dict'] = {
         (word, identifier): pattern_Path
         for (word, identifier), pattern_Path in metadata_Dict['Pattern_Path_Dict'].items()
@@ -203,7 +205,7 @@ def Metadata_Subset_Generate(word_List = None, identifier_List = None, metadata_
             }
     else:
         new_Metadata_Dict['Target_Dict'] = metadata_Dict['Target_Dict']
-    
+
     with open(os.path.join(hp_Dict['Pattern']['Pattern_Path'], metadata_File_Name).replace('\\', '/'), 'wb') as f:
         pickle.dump(new_Metadata_Dict, f, protocol= 4)
 
@@ -216,10 +218,10 @@ def Get_File_List():
             if len(name.split('_')) != 2 or ext != '.wav'.upper():
                 continue
             word, talker = name.split('_')
-            
+
             if not word in using_Word_List:
                 continue
-            
+
             file_List.append((
                 word,
                 pronunciation_Dict[word],
@@ -248,7 +250,7 @@ if __name__ == '__main__':
     Metadata_Generate()
 
     # Example
-    Metadata_Subset_Generate(
-        identifier_List= ['Agnes', 'Alex', 'Allison', 'Ava',  'Bruce', 'Fred', 'Junior', 'Kathy', 'Princess', 'Ralph', 'Samantha', 'Susan', 'Tom', 'Vicki', 'Victoria'],
-        metadata_File_Name = 'METADATA.1KW.15T.PICKLE'
-        )
+    #Metadata_Subset_Generate(
+    #    identifier_List= ['Agnes', 'Alex', 'Allison', 'Ava',  'Bruce', 'Fred', 'Junior', 'Kathy', 'Princess', 'Ralph', 'Samantha', 'Susan', 'Tom', 'Vicki', 'Victoria'],
+    #    metadata_File_Name = 'METADATA.1KW.15T.PICKLE'
+    #    )
