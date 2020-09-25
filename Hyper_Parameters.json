@@ -1,10 +1,10 @@
 {
     "Pattern": {
-        "Lexicon_File": "Pronunciation_Data_1K.New.txt",
-        "Wav_Path": "D:/EARShot_Temp/WAV",
-        "Pattern_Path": "D:/EARShot_Temp/Pattern",
+        "Lexicon_File": "/Users/kevinbrown/projects/psycholing/earshot/results/2020.06.19/Pronunciation_Data_1K.Modified.txt",
+        "Wav_Path": "/Users/kevinbrown/data/language/speech/WAV/EARSHOT_NEW_WAVS",
+        "Pattern_Path": "./Pattern_Data/spin1bal-30",
         "Metadata_File": "METADATA.PICKLE",
-        
+
         "Acoustic": {
             "Mode": "Spectrogram",
             "Spectrogram": {
@@ -23,15 +23,15 @@
             }
         },
         "Semantic": {
-            "Mode": "SRV",
+            "Mode": "PGD",
             "SRV": {
                 "Size": 300,
-                "Assign_Number": 10
+                "Assign_Number": 30
             },
             "PGD": {
                 "Size": 300,
-                "Dict_File_Path": "Word2Vec.Paper1K.Kevin.pydb"
-            }            
+                "Dict_File_Path": "/Users/kevinbrown/projects/psycholing/earshot/results/2020.06.19/EARSHOT-1K-Modified-spin1bal30.pydb"
+            }
         }
     },
 
@@ -42,7 +42,7 @@
             "Criteria": [0.0, 0.5, 0.05],
             "Step_Range": [5, 15]
         },
-        
+
         "Only_All": true
     },
 
@@ -53,7 +53,7 @@
             "Kernel_Sizes": [5, 5, 5],
             "Strides": [1, 1, 1],
             "Use_Batch_Normalization": true,
-            "Dropout_Rate": 0.5            
+            "Dropout_Rate": 0.5
         },
         "Hidden": {
             "Type": "LSTM",
@@ -63,6 +63,8 @@
     },
 
     "Train": {
+        "Loss": "CE",
+        "Mode": "ADAM",
         "Use_Pattern_Cache": true,
         "Batch_Size": 1000,
         "Learning_Rate": {
@@ -71,14 +73,18 @@
             "Warmup_Step": 4000,
             "Min": 1e-5
         },
+        "SGD": {
+            "Momentum": 0.0,
+            "Nesterov": false
+        },
         "ADAM": {
             "Beta1": 0.9,
             "Beta2": 0.999,
             "Epsilon": 1e-7
         },
-        "Test_Only_Identifier_List": ["JM", "EO"],
+        "Test_Only_Identifier_List": [],
         "Max_Epoch_with_Exclusion": 4000,
-        "Max_Epoch_without_Exclusion": 6000,
+        "Max_Epoch_without_Exclusion": 8000,
         "Max_Queue": 100,
         "Exclusion_Mode": "M",
         "Checkpoint_Save_Timing": 1000,
