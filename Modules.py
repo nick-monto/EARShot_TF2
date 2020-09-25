@@ -37,6 +37,7 @@ class Prenet(tf.keras.layers.Layer):
         '''
         return self.layer(inputs)
 
+
 class Network(tf.keras.layers.Layer):
     def build(self, input_shapes):
         if hp_Dict['Model']['Hidden']['Type'].upper() == 'LSTM':
@@ -47,7 +48,7 @@ class Network(tf.keras.layers.Layer):
             rnn_Cell = tf.keras.layers.SimpleRNN
         else:
             raise ValueError('Unsupported hidden rnn type.')
-        
+
         self.layer_Dict = {}
         self.layer_Dict['Hidden'] = rnn_Cell(
             units= hp_Dict['Model']['Hidden']['Size'],
@@ -62,7 +63,7 @@ class Network(tf.keras.layers.Layer):
 
     def call(self, inputs):
         '''
-        inputs: prenet(acoustic) and previous_state pattern  
+        inputs: prenet(acoustic) and previous_state pattern
         prenet(acoustic): [Batch, Time, Dim]
         previous_state:
         A list of [[Batch, Dim], [Batch, Dim]] when type is LSTM.
@@ -103,7 +104,7 @@ class Network(tf.keras.layers.Layer):
         else:
             raise ValueError('Unsupported hidden rnn type.')
 
-class Loss(tf.keras.layers.Layer):
+class CELoss(tf.keras.layers.Layer):
     def call(self, inputs):
         '''
         inputs: acoustic lengths, semantic lables and logits
@@ -117,7 +118,7 @@ class Loss(tf.keras.layers.Layer):
             tf.expand_dims(labels, axis= 1),
             [1, tf.shape(logits)[1], 1]
             )
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(                     
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(
             labels= labels,
             logits= logits
             )
@@ -128,7 +129,51 @@ class Loss(tf.keras.layers.Layer):
                 ),
             axis= -1
             )
-        
+
+        loss_Sequence = tf.reduce_mean(loss, axis= -1)
+        loss_Sequence /= tf.math.count_nonzero(
+            loss_Sequence,
+            axis= 0,
+            keepdims= True,
+            dtype= loss_Sequence.dtype
+            )
+        loss_Sequence = tf.reduce_sum(loss_Sequence, axis= 0)
+
+        loss = tf.reduce_sum(tf.reduce_mean(loss, axis= -1))
+
+        return loss, loss_Sequence
+
+
+class L2Loss(tf.keras.layers.Layer):
+    '''
+    Class for adding L2 loss functions to EARSHOT - this (plus an appropriate
+    output nonlinearity) allow you to train to continous (as opposed to binary)
+    targets.
+    '''
+    def call(self, inputs):
+        '''
+        inputs: acoustic lengths, semantic lables and logits
+        lengths: [Batch,]
+        labels: [Batch, Dim]
+        logits: [Batch, Time, Dim]
+        '''
+        lengths, labels, logits = inputs
+
+        labels = tf.tile(
+            tf.expand_dims(labels, axis= 1),
+            [1, tf.shape(logits)[1], 1]
+            )
+
+        loss = tf.nn.l2_loss(tf.nn.tanh(logits)-labels)
+
+        loss *= tf.expand_dims(
+            tf.sequence_mask(
+                lengths= lengths,
+                dtype= loss.dtype
+                ),
+            axis= -1
+            )
+
         loss_Sequence = tf.reduce_mean(loss, axis= -1)
         loss_Sequence /= tf.math.count_nonzero(
             loss_Sequence,
@@ -149,15 +194,15 @@ class NoamDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
         initial_learning_rate,
         warmup_steps= 4000,
         min_learning_rate= None,
-        ):    
+        ):
         super(NoamDecay, self).__init__()
-        
+
         self.initial_learning_rate = initial_learning_rate
         self.warmup_steps = warmup_steps
         self.min_learning_rate = min_learning_rate or 0
 
     def __call__(self, step):
-        learning_rate = self.initial_learning_rate * self.warmup_steps ** 0.5 * tf.minimum(step * self.warmup_steps**-1.5, step**-0.5)        
+        learning_rate = self.initial_learning_rate * self.warmup_steps ** 0.5 * tf.minimum(step * self.warmup_steps**-1.5, step**-0.5)
         return tf.maximum(learning_rate, self.min_learning_rate)
 
     def get_config(self):
@@ -166,4 +211,3 @@ class NoamDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
             'warmup_steps': self.warmup_steps,
             'min_learning_rate': self.min_learning_rate
             }
-
