@@ -26,7 +26,7 @@
   - items for Gaskell/Marslen-Wilson semantic blends (JM)
   - de-hackify switch between L2/tanh and cross-ent/sigmoid (KB) : N.B. I've done this but I can't test it because damn librosa broke somehow when my new machines
   were setup - scipy
-  - using a single json file is confusing since it mixes pattern generation, model running, and analysis options together. these should be separated
+  - separate .json files into model, parameters, and analyzer sets (KB in progress)
 
 ## Under Discussion:
 
