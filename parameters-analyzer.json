@@ -1,0 +1,8 @@
+{
+    "Pattern": {
+        "Pattern_Path": "./Pattern_Data/spin1bal-30",
+        "Metadata_File": "METADATA.PICKLE"
+    },
+
+    "Results_Path": "./Results"
+}

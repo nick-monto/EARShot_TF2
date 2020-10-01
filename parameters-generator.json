@@ -1,0 +1,37 @@
+{
+    "Pattern": {
+        "Lexicon_File": "./tests/test-pron.txt",
+        "Wav_Path": "./tests/wavs",
+        "Pattern_Path": "./tests/test-pat",
+        "Metadata_File": "METADATA.PICKLE",
+
+        "Acoustic": {
+            "Mode": "Spectrogram",
+            "Spectrogram": {
+                "Sample_Rate": 22050,
+                "Dimension": 256,
+                "Frame_Length": 10,
+                "Frame_Shift": 10
+            },
+            "Mel": {
+                "Sample_Rate": 22050,
+                "Spectrogram_Dimension": 1025,
+                "Dimension": 80,
+                "Frame_Length": 10,
+                "Frame_Shift": 10,
+                "Max_Abs": 4
+            }
+        },
+        "Semantic": {
+            "Mode": "SRV",
+            "SRV": {
+                "Size": 300,
+                "Assign_Number": 30
+            },
+            "PGD": {
+                "Size": 300,
+                "Dict_File_Path": "need-to-set.pydb"
+            }
+        }
+    }
+}

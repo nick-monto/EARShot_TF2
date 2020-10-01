@@ -4,7 +4,7 @@ from random import sample
 from Audio import *
 from concurrent.futures import ThreadPoolExecutor as PE
 
-with open('Hyper_Parameters.json', 'r') as f:
+with open('parameters-generator.json', 'r') as f:
     hp_Dict = json.load(f)
 
 #Global constants
