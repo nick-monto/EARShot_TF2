@@ -5,6 +5,7 @@
   - JM (Jim Magnuson)
   - KB (Kevin Brown)
   - CB (Christian Broadbeck)
+  - NM (Nick Monto)
   - ALL (Everyone)
 
 ## Tasks:
@@ -26,12 +27,36 @@
   - items for Gaskell/Marslen-Wilson semantic blends (JM)
   - de-hackify switch between L2/tanh and cross-ent/sigmoid (KB) : N.B. I've done this but I can't test it because damn librosa broke somehow when my new machines
   were setup - scipy
-  - separate .json files into model, parameters, and analyzer sets (KB in progress)
+  - ~~~separate .json files into model, parameters, and analyzer sets (KB in progress)~~~
+  - function naming convention is horrible; why do we have a `Pattern_Generator` module and `Feeder.Pattern_Generate`?
+  - replace reading `.json` file with a `python` dictionary (possibly via attrs module) (KB, in progress)
+  - convert `Pattern_Generator` from a script to a proper class, using the `PatternParameters` object and not a .json file
 
 ## Under Discussion:
 
 (These items should either be moved into Tasks or deleted)
 
-  - replace reading `.json` file with a `python` dictionary (possibly via attrs module)
   - more flexibility in input patterns; have the model auto-sniff input/output sizes from a pattern file
   - shift to keras to clean up model instantiation etc.
+
+## Notes
+
+(Space for notes on the code that don't fit neatly into the categories above)
+
+  - parameters from the .json file that `Pattern_Generator` uses:
+    - only uses parameters from the 'Pattern' group
+  - parameters that `Feeder` uses:
+    - 'Result_Path', 'Pattern -> Pattern_Path', 'Pattern' -> Metadata_File'
+    - 'Train' -> 'Test_Only_Identifier_List', 'Train' -> 'Exclusion Mode'
+    - 'Train' -> 'Batch_Size', 'Train' -> 'Max_Queue', 'Train' -> 'Use_Pattern_Cache'
+    - 'Pattern' -> 'Acoustic' -> etc.
+  - parameters that `Modules` uses:
+    - 'Model' -> 'Prenet' -> etc., 'Model' -> 'Hidden' -> etc.
+    - 'Pattern' -> 'Semantic' -> etc.
+  - parameters that `Model` uses:
+    - 'Pattern' -> etc., 'Model' -> 'Hidden' -> etc.
+    - 'Train' -> 'Loss', 'Model' -> 'Prenet' -> etc.
+    - 'Train' -> 'Learning_Rate' -> etc., 'Train' -> 'ADAM' -> etc.
+    - 'Train' -> 'SGD' -> etc., 'Train' -> 'Checkpoint_Save_Timing'
+    - 'Train' -> 'Test_Timing', 'Train' -> 'Batch_Size'
+    - 'Train' -> 'Max_Epoch_without_Exclusion'
