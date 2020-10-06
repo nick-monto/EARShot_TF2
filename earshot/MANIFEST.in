@@ -1,0 +1,3 @@
+include tests/test-pron.txt
+include tests/wavs/*.WAV
+include tests/*.py
