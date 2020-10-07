@@ -30,7 +30,10 @@
   - ~~~separate .json files into model, parameters, and analyzer sets (KB in progress)~~~
   - function naming convention is horrible; why do we have a `Pattern_Generator` module and `Feeder.Pattern_Generate`?
   - replace reading `.json` file with a `python` dictionary (possibly via attrs module) (KB, in progress)
-  - convert `Pattern_Generator` from a script to a proper class, using the `PatternParameters` object and not a .json file
+  - convert `Pattern_Generator` from a script to a proper class, using the `PatternParameters` object and not a .json file (KB, in progress)
+  - do we need all these explicit conversions to float32??
+  - patterns.PatternGenerator.generate_metadata() needs to be rethought
+  - ~~~need to catch exceptions in the ThreadPool used in patterns.PatternGenerator.generate_patterns() (KB)~~~
 
 ## Under Discussion:
 
