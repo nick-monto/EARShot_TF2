@@ -5,7 +5,7 @@ def file_not_found(instance,attribute,value):
         raise ValueError('{} does not exist!'.format(attribute.name))
 
 
-# if we wanted to be REALLY fussy, we could freeze the object in the decorator (@attr.s(frozen=True)) 
+# if we wanted to be REALLY fussy, we could freeze the object in the decorator (@attr.s(frozen=True))
 #   so that parameters cannot be changed after initialization (seems very non-pythonic though)
 @attr.s
 class PatternParameters(object):
