@@ -39,12 +39,8 @@ class Analyzer:
     def parse_rt_file(self):
         '''
         Reads the "RTs" file produced by EARShot and creates an Epoch-Accuracy
-        file for onset- and off-set relative, absolute, and time-dependent
-        accuracies.
-
-        If everyone is going to use python to look at this data anyway, we might
-        as well just save the data dict as a pickle and avoid all the re-parsing.
-        (KB,9/24/20)
+        dictionary for onset- and off-set relative, absolute, and time-dependent
+        accuracies. Saves the result to a pickle.
         '''
         acc_file = os.path.join(self.result_Path, 'Test', 'RTs.txt').replace('\\', '/')
         data = pd.read_csv(acc_file,sep='\t')
@@ -62,16 +58,18 @@ class Analyzer:
                 acc_data[meas][e] = (n_total - n_wrong)/n_total
 
         # dump the results
-        col_order = ['Epoch']+list(acc_data.keys())
-        f = open(os.path.join(self.result_Path, 'Test', 'ACC.txt').replace('\\', '/'), 'w')
+        fname = os.path.join(self.result_Path, 'Test', 'ACC.pydb').replace('\\', '/')
+        pickle.dump(acc_data,open(fname,'wb'))
+        #col_order = ['Epoch']+list(acc_data.keys())
+        #f = open(os.path.join(self.result_Path, 'Test', 'ACC.txt').replace('\\', '/'), 'w')
         # header
-        h_string = ','.join([k for k in col_order])+'\n'
-        f.write(h_string)
+        #h_string = ','.join([k for k in col_order])+'\n'
+        #f.write(h_string)
         # data
-        for e in epochs:
-            w_s = ','.join([str(e)]+[str(acc_data[k][e]) for k in col_order[1:]])+'\n'
-            f.write(w_s)
-        f.close()
+        #for e in epochs:
+        #    w_s = ','.join([str(e)]+[str(acc_data[k][e]) for k in col_order[1:]])+'\n'
+        #    f.write(w_s)
+        #f.close()
 
 
     def parse_cf_file(self):
@@ -83,9 +81,7 @@ class Analyzer:
         I'm not handling speakers/word/etc. at all right now - this just
         averages over every correct target response in every epoch.
 
-        If everyone is going to use python to look at this data anyway, we might
-        as well just save the data dict as a pickle and avoid all the re-parsing.
-        (KB,9/24/20)
+        Saves the resulting dictionary to a pickle.
         '''
         cf_file = os.path.join(self.result_Path, 'Test', 'Category_Flows.txt').replace('\\', '/')
         data = pd.read_csv(cf_file,sep='\t')
@@ -106,12 +102,14 @@ class Analyzer:
                 cat_data[e][c] = mean_series.values[13:]
 
         # now dump the results
-        f = open(os.path.join(self.result_Path, 'Test', 'CS.txt').replace('\\', '/'), 'w')
-        for e in cat_data:
-            for c in cat_data[e]:
-                w_s = ','.join([str(e),c]+[str(x) for x in cat_data[e][c]])
-                f.write(w_s+'\n')
-        f.close()
+        fname = os.path.join(self.result_Path, 'Test', 'CS.pydb').replace('\\', '/')
+        pickle.dump(cat_data,open('fname','wb'))
+        #f = open(os.path.join(self.result_Path, 'Test', 'CS.txt').replace('\\', '/'), 'w')
+        #for e in cat_data:
+        #    for c in cat_data[e]:
+        #        w_s = ','.join([str(e),c]+[str(x) for x in cat_data[e][c]])
+        #        f.write(w_s+'\n')
+        #f.close()
 
 
     def Analysis(self, batch_Steps= 200):
