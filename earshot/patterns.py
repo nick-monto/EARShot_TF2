@@ -27,7 +27,6 @@ class PatternGenerator(object):
         os.makedirs(self.pattern_params.pattern_path, exist_ok= True)
 
 
-
     def assemble_wordlist(self):
         '''
         Reads the pronounciation file and creates a word:list of phonemes
@@ -116,7 +115,6 @@ class PatternGenerator(object):
                     print('{},{} pair generated an exception.'.format(word,talker))
                 else:
                     print('{}:{} pair ({}) processed.'.format(word,talker,wav_file))
-
 
 
     def generate(self,word,pron,talker,wav_file):
