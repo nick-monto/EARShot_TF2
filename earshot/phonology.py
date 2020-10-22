@@ -41,7 +41,7 @@ def are_rhymes(x,y):
     '''
     Takes two phonological transcriptions (strings for single-letter dictionaries,
     lists of phonemes for multi-letter codes like CSAMPA) and returns True if
-    they are rhymes (identical after the inital phoneme but not homophones).
+    they are rhymes (mismatch at only the initial phoneme).
     '''
     if x == y:
         return False
