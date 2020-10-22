@@ -65,24 +65,170 @@ class Analyzer:
 
                 # assume word is unrelated by default
                 if target_word == compare_word:
-                    # word is the target
+                    # word is the target; move on
                     self.category_dict[target_word, 'Target'].append(compare_word_indx)
-                    unrelated = False
+                    continue
+
+                # words cannot be both cohorts and rhymes
                 if are_cohorts(target_pron, compare_pron):
                     # words are in the same cohort
                     self.category_dict[target_word, 'Cohort'].append(compare_word_indx)
-                    unrelated = False
-                if are_rhymes(target_pron, compare_pron):
-                    # words are rhymes
+                    # they may also be neighbors
+                    if are_neighbors(target_pron,compare_pron):
+                        self.category_dict[target_word, 'DAS_Neighborhood'].append(compare_word_indx)
+                    continue
+                elif are_rhymes(target_pron, compare_pron):
+                    # words are rhymes and (by this def'n) automatically neighbors
                     self.category_dict[target_word, 'Rhyme'].append(compare_word_indx)
-                    unrelated = False
-                if unrelated:
-                    # words are not in any of the above classes
-                    self.category_dict[target_word, 'Unrelated'].append(compare_word_indx)
-                # WARNING: this is going to give unexpected results if we start looking at neighbors at some point . . .
-                if are_neighbors(target_pron,compare_pron):
-                    # words are Levenshtein neighbors
                     self.category_dict[target_word, 'DAS_Neighborhood'].append(compare_word_indx)
+                    continue
+
+                # words may be neighbors but not cohorts or rhymes
+                if are_neighbors(target_pron,compare_pron):
+                    self.category_dict[target_word, 'DAS_Neighborhood'].append(compare_word_indx)
+                    continue
+
+                # if we made it here, they must be unrelated
+                self.category_dict[target_word, 'Unrelated'].append(compare_word_indx)
+
+
+    def generate_adjusted_length_dict(self):
+        '''
+        This is used to establish uniqueness point, according to Heejo.
+        '''
+        self.adj_length_dict = {}
+
+        for word,pron in self.pattern_metadata['Prononciation_Dict'].items():
+            for cut_len in range(1,len(pron)+1):
+                cut_pron = pron[:cut_len]
+                to_compare = [candidate[:cut_len] for candidate in self.pattern_metadata['Pronunciation_Dict'].values() if pron != candidate]
+                if not cut_pron in to_compare:
+                    self.adj_length_dict[word] = cut_len - len(pron) - 1
+                    break
+            if not word in self.adj_length_dict:
+                self.adj_length_dict[word] = 0
+
+
+    # why is there a command line option here that you can't pass in from the constructor? you can't change it without editing
+    #   the source (should chuck it)
+    def analysis(self, batch_steps=200):
+        # this should be a glob
+        result_File_List = sorted([os.path.join(self.analyzer_parameters.model_output_path, 'Test', x).replace('\\', '/')
+            for x in os.listdir(os.path.join(self.analyzer_parameters.model_output_path, 'Test').replace('\\', '/'))
+            if x.endswith('.pickle') and x != 'Metadata.pickle'
+            ])
+
+
+    def Analysis(self, batch_Steps= 200):
+        result_File_List = sorted([os.path.join(self.analyzer_parameters.model_output_path, 'Test', x).replace('\\', '/')
+            for x in os.listdir(os.path.join(self.analyzer_parameters.model_output_path, 'Test').replace('\\', '/'))
+            if x.endswith('.pickle') and x != 'Metadata.pickle'
+            ])
+
+        reaction_Times = [
+            '\t'.join(['{}'.format(x) for x in [
+                'Epoch',
+                'Word',
+                'Identifier',
+                'Pattern_Type',
+                'Pronunciation',
+                'Pronunciation_Length',
+                'Uniqueness_Point',
+                'Cohort_N',
+                'Rhyme_N',
+                'Neighborhood_N',
+                'Onset_Absolute_RT',
+                'Onset_Relative_RT',
+                'Onset_Time_Dependent_RT',
+                'Offset_Absolute_RT',
+                'Offset_Relative_RT',
+                'Offset_Time_Dependent_RT'
+            ]])]
+        category_Flows = [
+            '\t'.join(['{}'.format(x) for x in [
+                'Epoch',
+                'Word',
+                'Identifier',
+                'Pattern_Type',
+                'Pronunciation',
+                'Pronunciation_Length',
+                'Uniqueness_Point',
+                'Cohort_N',
+                'Rhyme_N',
+                'Neighborhood_N',
+                'Category',
+                'Category_Count',
+                'Accuracy'
+            ] + list(range(self.max_Step))])]
+        for result_File in result_File_List:
+            with open(result_File, 'rb') as f:
+                result_Dict = pickle.load(f)
+            epoch = result_Dict['Epoch']
+            infos = result_Dict['Info']
+            outputs = result_Dict['Result'] #[Batch, Steps, Dims]
+
+            for index, (output, (word, identifier, pattern_Type)) in enumerate(zip(outputs, infos)):
+                data = self.Data_Generate(output, word, identifier, batch_Steps) #[Num_Words, Steps]
+                rt_Dict = self.RT_Generate(word, identifier, data)
+                category_Flow_Dict = self.Category_Flow_Generate(word, data)
+                reaction_Times.append(
+                    '\t'.join(['{}'.format(x) for x in [
+                        epoch,
+                        word,
+                        identifier,
+                        pattern_Type,
+                        '.'.join(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
+                        len(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
+                        self.adjusted_Length_Dict[word],
+                        len(self.category_Dict[word, 'Cohort']),
+                        len(self.category_Dict[word, 'Rhyme']),
+                        len(self.category_Dict[word, 'DAS_Neighborhood']),
+                        rt_Dict['Onset', 'Absolute'],
+                        rt_Dict['Onset', 'Relative'],
+                        rt_Dict['Onset', 'Time_Dependent'],
+                        rt_Dict['Offset', 'Absolute'],
+                        rt_Dict['Offset', 'Relative'],
+                        rt_Dict['Offset', 'Time_Dependent']
+                        ]])
+                    )
+
+                for category in ["Target", "Cohort", "Rhyme", "Unrelated", "Other_Max"]:
+                    if category == "Other_Max":
+                        category_Count = np.nan
+                    else:
+                        category_Count = len(self.category_Dict[word, category])
+                    category_Flows.append(
+                        '\t'.join(['{}'.format(x) for x in [
+                            epoch,
+                            word,
+                            identifier,
+                            pattern_Type,
+                            '.'.join(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
+                            len(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
+                            self.adjusted_Length_Dict[word],
+                            len(self.category_Dict[word, 'Cohort']),
+                            len(self.category_Dict[word, 'Rhyme']),
+                            len(self.category_Dict[word, 'DAS_Neighborhood']),
+                            category,
+                            category_Count,
+                            not np.isnan(rt_Dict["Onset", "Time_Dependent"])
+                            ] + ['{:.5f}'.format(x) for x in category_Flow_Dict[category]]])
+                        )
+
+                progress(
+                    index + 1,
+                    outputs.shape[0],
+                    status= result_File
+                    )
+            print()
+
+        with open(os.path.join(self.result_Path, 'Test', 'RTs.txt').replace('\\', '/'), 'w') as f:
+            f.write('\n'.join(reaction_Times))
+        with open(os.path.join(self.result_Path, 'Test', 'Category_Flows.txt').replace('\\', '/'), 'w') as f:
+            f.write('\n'.join(category_Flows))
+
+
+
 
 
     def parse_rt_file(self):
