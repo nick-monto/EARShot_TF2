@@ -42,3 +42,4 @@ class AnalyzerParameters(object):
     rel_acc_crit = attr.ib(kw_only=True,default=0.05)
     td_acc_crit = attr.ib(kw_only=True,default=(10,0.05),validator=attr.validators.instance_of(tuple))
     step_cut = attr.ib(kw_only=True,default=True,validator=attr.validators.instance_of(bool))
+    batch_step = attr.ib(kw_only=True,default=200)

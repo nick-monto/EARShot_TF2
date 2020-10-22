@@ -1,10 +1,9 @@
 import tensorflow as tf,numpy as np,pandas as pd,_pickle as pickle
 import os, io, gc, json
-import argparse
+import argparse, glob
 
 from .phonology import are_cohorts, are_neighbors, are_rhymes
-
-from ProgressBar import progress
+from .progressbar import progress
 
 #with open('Hyper_Parameters.json', 'r') as f:
 #    hp_Dict = json.load(f)
@@ -109,126 +108,169 @@ class Analyzer:
                 self.adj_length_dict[word] = 0
 
 
-    # why is there a command line option here that you can't pass in from the constructor? you can't change it without editing
-    #   the source (should chuck it)
-    def analysis(self, batch_steps=200):
-        # this should be a glob
-        result_File_List = sorted([os.path.join(self.analyzer_parameters.model_output_path, 'Test', x).replace('\\', '/')
-            for x in os.listdir(os.path.join(self.analyzer_parameters.model_output_path, 'Test').replace('\\', '/'))
-            if x.endswith('.pickle') and x != 'Metadata.pickle'
-            ])
+    def analysis(self):
+        '''
+        Reads checkpointed .pickle files in the appropriate results directory (set in the analyzer_parameters) to
+        generate run summary information files (competitort activation, accuracy as a function of epoch).  Currently, all
+        files reside in a "Test" subdirectory and have the format E_#.I_#.pickle.  This are the only files that will
+        be analyzed.
 
+        The run summary information text files could be removed and the pickles written directly; when I wrote the parsers,
+        I didn't really understand this function.  If we were sure the parsers harvest everything we want, we could remove
+        the intermediate txt files. (K.B. 10/22/20)
+        '''
+        result_files = glob.glob(os.path.join(self.analyzer_parameters.model_output_path, 'Test','E_*.pickle').replace('\\', '/')))
+        # dictionaries that will be read into files
+        reaction_times = ['\t'.join(['{}'.format(x) for x in ['Epoch','Word','Identifier','Pattern_Type','Pronunciation','Pronunciation_Length','Uniqueness_Point',
+            'Cohort_N','Rhyme_N','Neighborhood_N','Onset_Absolute_RT','Onset_Relative_RT','Onset_Time_Dependent_RT','Offset_Absolute_RT','Offset_Relative_RT','Offset_Time_Dependent_RT']])]
 
-    def Analysis(self, batch_Steps= 200):
-        result_File_List = sorted([os.path.join(self.analyzer_parameters.model_output_path, 'Test', x).replace('\\', '/')
-            for x in os.listdir(os.path.join(self.analyzer_parameters.model_output_path, 'Test').replace('\\', '/'))
-            if x.endswith('.pickle') and x != 'Metadata.pickle'
-            ])
+        category_flows = ['\t'.join(['{}'.format(x) for x in ['Epoch','Word','Identifier','Pattern_Type','Pronunciation','Pronunciation_Length','Uniqueness_Point',
+            'Cohort_N','Rhyme_N','Neighborhood_N','Category','Category_Count','Accuracy'] + list(range(self.max_Step))])]
 
-        reaction_Times = [
-            '\t'.join(['{}'.format(x) for x in [
-                'Epoch',
-                'Word',
-                'Identifier',
-                'Pattern_Type',
-                'Pronunciation',
-                'Pronunciation_Length',
-                'Uniqueness_Point',
-                'Cohort_N',
-                'Rhyme_N',
-                'Neighborhood_N',
-                'Onset_Absolute_RT',
-                'Onset_Relative_RT',
-                'Onset_Time_Dependent_RT',
-                'Offset_Absolute_RT',
-                'Offset_Relative_RT',
-                'Offset_Time_Dependent_RT'
-            ]])]
-        category_Flows = [
-            '\t'.join(['{}'.format(x) for x in [
-                'Epoch',
-                'Word',
-                'Identifier',
-                'Pattern_Type',
-                'Pronunciation',
-                'Pronunciation_Length',
-                'Uniqueness_Point',
-                'Cohort_N',
-                'Rhyme_N',
-                'Neighborhood_N',
-                'Category',
-                'Category_Count',
-                'Accuracy'
-            ] + list(range(self.max_Step))])]
-        for result_File in result_File_List:
-            with open(result_File, 'rb') as f:
-                result_Dict = pickle.load(f)
-            epoch = result_Dict['Epoch']
-            infos = result_Dict['Info']
-            outputs = result_Dict['Result'] #[Batch, Steps, Dims]
+        for f in result_files:
+            result_dict = pickle.load(open(f,'rb'))
+            epoch = result_dict['Epoch']
+            info = result_dict['Info']
+            outputs = result_dict['Result']
 
-            for index, (output, (word, identifier, pattern_Type)) in enumerate(zip(outputs, infos)):
-                data = self.Data_Generate(output, word, identifier, batch_Steps) #[Num_Words, Steps]
-                rt_Dict = self.RT_Generate(word, identifier, data)
-                category_Flow_Dict = self.Category_Flow_Generate(word, data)
-                reaction_Times.append(
-                    '\t'.join(['{}'.format(x) for x in [
-                        epoch,
-                        word,
-                        identifier,
-                        pattern_Type,
-                        '.'.join(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
-                        len(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
-                        self.adjusted_Length_Dict[word],
-                        len(self.category_Dict[word, 'Cohort']),
-                        len(self.category_Dict[word, 'Rhyme']),
-                        len(self.category_Dict[word, 'DAS_Neighborhood']),
-                        rt_Dict['Onset', 'Absolute'],
-                        rt_Dict['Onset', 'Relative'],
-                        rt_Dict['Onset', 'Time_Dependent'],
-                        rt_Dict['Offset', 'Absolute'],
-                        rt_Dict['Offset', 'Relative'],
-                        rt_Dict['Offset', 'Time_Dependent']
-                        ]])
-                    )
+            for index, (output, (word,identfier,pattern_type)) in enumerate(zip(outputs,info)):
+                data = self.generate_data(output, word, identifier) #[Num_Words, Steps]
+                rt_dict = self.generate_rt(word, identifier, data)
+                cf_dict = self.generate_category_flow(word, data)
+                reaction_Times.append('\t'.join(['{}'.format(x) for x in [epoch,word,identifier,pattern_type,'.'.join(self.pattern_parameters.lexicon[word]),
+                        len(self.pattern_parameters.lexicon[word]),self.adj_length_dict[word],len(self.category_dict[word, 'Cohort']),len(self.category_dict[word, 'Rhyme']),
+                        len(self.category_dict[word, 'DAS_Neighborhood']),rt_dict['Onset', 'Absolute'],rt_Dict['Onset', 'Relative'],rt_Dict['Onset', 'Time_Dependent'],
+                        rt_Dict['Offset', 'Absolute'],rt_Dict['Offset', 'Relative'],rt_Dict['Offset', 'Time_Dependent']]]))
 
                 for category in ["Target", "Cohort", "Rhyme", "Unrelated", "Other_Max"]:
                     if category == "Other_Max":
-                        category_Count = np.nan
+                        category_count = np.nan
                     else:
-                        category_Count = len(self.category_Dict[word, category])
-                    category_Flows.append(
-                        '\t'.join(['{}'.format(x) for x in [
-                            epoch,
-                            word,
-                            identifier,
-                            pattern_Type,
-                            '.'.join(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
-                            len(self.pattern_Metadata_Dict['Pronunciation_Dict'][word]),
-                            self.adjusted_Length_Dict[word],
-                            len(self.category_Dict[word, 'Cohort']),
-                            len(self.category_Dict[word, 'Rhyme']),
-                            len(self.category_Dict[word, 'DAS_Neighborhood']),
-                            category,
-                            category_Count,
-                            not np.isnan(rt_Dict["Onset", "Time_Dependent"])
-                            ] + ['{:.5f}'.format(x) for x in category_Flow_Dict[category]]])
-                        )
+                        category_count = len(self.category_dict[word, category])
+                    category_Flows.append('\t'.join(['{}'.format(x) for x in [epoch,word,identifier,pattern_type,'.'.join(self.pattern_parameters.lexicon[word]),
+                        len(self.pattern_parameters.lexicon[word]),self.adj_length_dict[word],len(self.category_dict[word, 'Cohort']),len(self.category_dict[word, 'Rhyme']),
+                        len(self.category_dict[word, 'DAS_Neighborhood']),category,category_count,not np.isnan(rt_dict["Onset", "Time_Dependent"])]
+                        + ['{:.5f}'.format(x) for x in cf_dict[category]]]))
 
-                progress(
-                    index + 1,
-                    outputs.shape[0],
-                    status= result_File
-                    )
+                progress(index + 1,outputs.shape[0],status=f)
             print()
-
+        # these files could be removed if we were sure the parse_ functions harvest everything we want
         with open(os.path.join(self.result_Path, 'Test', 'RTs.txt').replace('\\', '/'), 'w') as f:
-            f.write('\n'.join(reaction_Times))
+                f.write('\n'.join(reaction_Times))
         with open(os.path.join(self.result_Path, 'Test', 'Category_Flows.txt').replace('\\', '/'), 'w') as f:
-            f.write('\n'.join(category_Flows))
+                f.write('\n'.join(category_Flows))
 
 
+    def generate_data(self, output, word, identifier):
+        '''
+        Heejo says: Data generation is progressed pattern by pattern, not multiple pattern because GPU consuming.
+        output: [Steps, Dims]
 
+        N.B. generate_data() is a terrible name for this function.  I think this just stacks up single calculations of
+        cosine similarity from calculate_data? (K.B.)
+        '''
+        cs_list = []
+        for batch_index in range(0, output.shape[1], self.analyzer_parameters.batch_step:
+            cs_list.append(self.calculate_data(output= output[batch_index:batch_index + self.analyzer_parameters.batch_step]))
+        cos_sim = np.hstack(cs_list)
+        if self.analyzer_parameters.step_cut:
+            cos_sim[:, self.step[word, identifier]:] = cos_sim[:, [self.step[word, identifier] - 1]]
+        return cos_sim
+
+
+    @tf.function
+    def self.calculate_data(self,outputs):
+        '''
+        This actually computes cosines.
+
+        Heejo says:
+                output: [Steps, Dims]
+                self.targets: [Num_Words, Dims]
+        '''
+        output = tf.convert_to_tensor(output, dtype=tf.float32)
+        targets = tf.convert_to_tensor(self.targets, dtype=tf.float32)
+
+        #Heejo: [Num_Words, Steps, Dims], increase dimension and tiled for 2D comparing.
+        tiled_output = tf.tile(tf.expand_dims(output, [0]),multiples = [tf.shape(targets)[0], 1, 1])
+        # Heejo: [Num_Words, Steps, Dims], increase dimension and tiled for 2D comparing.
+        tiled_targets = tf.tile(tf.expand_dims(targets, [1]),multiples = [1, tf.shape(output)[0], 1])
+        # do the calculation
+        ttto = tiled_targets*tiled_output
+        ttsq = tf.pow(tiled_targets,2)
+        tosq = tf.pow(tiled_output,2)
+        cos_sim = tf.reduce_sum(ttto, axis = 2)/(tf.sqrt(tf.reduce_sum(ttsq, axis = 2)) * tf.sqrt(tf.reduce_sum(tosq, axis = 2)) + 1e-7)  #[Num_Words, Steps]
+
+        return cos_sim
+
+
+    def generate_rt(self, word, identifier, data):
+        '''
+        Operationalizes accuracy using three different definitions and the cutoff parameters supplied
+        in the analyzer options.
+
+        absolute accuracy:
+            point at which the most active word crosses the absolute activity threshold
+
+        relative accuracy:
+            point at which the activity of the most active word exceeds the next most active word by the
+            relative threshold
+
+        time-dependent accuracy:
+            activity of the most active word has to be greater than the activity of the next most
+            active word by a threshold and maintain that difference for a given number of time steps
+        '''
+        rt_dict = {('Onset', 'Absolute'): np.nan,('Onset', 'Relative'): np.nan,('Onset', 'Time_Dependent'): np.nan}
+
+        target_index = self.word_index[word]
+        target_array = data[target_index]
+        # this is the runner up word (after the target)
+        other_max_array = np.max(np.delete(data, target_index, 0), axis=0)
+
+        # makes for less typing
+        abs_cut = self.analyzer_parameters.abs_acc_crit
+        rel_delta = self.analyzer_parameters.rel_acc_crit
+        td_cut = self.analyzer_parameters.td_acc_crit[1]
+        td_T = self.analyzer_parameters.td_acc_crit[0]
+
+        # absolute RT
+        if not (other_max_array > abs_cut).any():
+            abs_check_array = target_array > abs_cut
+            for step in range(self.max_step):
+                if abs_check_array[step]:
+                    rt_dict['Onset', 'Absolute'] = step
+                    break
+        # Calculate Offset RT
+        if not np.isnan(rt_dict['Onset', 'Absolute']):
+            rt_dict['Offset', 'Absolute'] = rt_dict['Onset', 'Absolute'] - self.step[word, identifier]
+        else:
+            rt_dict['Offset', 'Absolute'] = np.nan
+
+        #relative RT
+        rel_check_array = target_array > (other_max_array + rel_delta)
+        for step in range(self.max_step):
+            if relative_check_array[step]:
+                rt_dict['Onset', 'Relative'] = step
+                break
+        # Calculate Offset RT
+        if not np.isnan(rt_dict['Onset', 'Relative']):
+            rt_dict['Offset', 'Relative'] = rt_dict['Onset', 'Relative'] - self.step[word, identifier]
+        else:
+            rt_dict['Offset', 'Relative'] = np.nan
+
+        # time-dependent RT
+        td_check_array_crit = target_array > other_max_array + td_cut
+        td_check_array_sus = target_array > other_max_array
+        for step in range(self.max_Step - td_T):
+            if all(np.hstack([td_check_array_crit[step:step + td_T],td_check_array_sus[step + td_T:]])):
+                rt_Dict['Onset', 'Time_Dependent'] = step
+                break
+        # Calculate Offset RT
+        if not np.isnan(rt_dict['Onset', 'Time_Dependent']):
+            rt_dict['Offset', 'Time_Dependent'] = rt_dict['Onset', 'Time_Dependent'] - self.step_Dict[word, identifier]
+        else:
+            rt_dict['Offset', 'Time_Dependent'] = np.nan
+
+        return rt_dict
 
 
     def parse_rt_file(self):
@@ -341,16 +383,6 @@ class Analyzer:
         # dump the results
         fname = os.path.join(self.result_Path, 'Test', 'ACC.pydb').replace('\\', '/')
         pickle.dump(acc_data,open(fname,'wb'))
-        #col_order = ['Epoch']+list(acc_data.keys())
-        #f = open(os.path.join(self.result_Path, 'Test', 'ACC.txt').replace('\\', '/'), 'w')
-        # header
-        #h_string = ','.join([k for k in col_order])+'\n'
-        #f.write(h_string)
-        # data
-        #for e in epochs:
-        #    w_s = ','.join([str(e)]+[str(acc_data[k][e]) for k in col_order[1:]])+'\n'
-        #    f.write(w_s)
-        #f.close()
 
 
     def parse_cf_file(self):
@@ -385,12 +417,6 @@ class Analyzer:
         # now dump the results
         fname = os.path.join(self.result_Path, 'Test', 'CS.pydb').replace('\\', '/')
         pickle.dump(cat_data,open('fname','wb'))
-        #f = open(os.path.join(self.result_Path, 'Test', 'CS.txt').replace('\\', '/'), 'w')
-        #for e in cat_data:
-        #    for c in cat_data[e]:
-        #        w_s = ','.join([str(e),c]+[str(x) for x in cat_data[e][c]])
-        #        f.write(w_s+'\n')
-        #f.close()
 
 
     def Analysis(self, batch_Steps= 200):
