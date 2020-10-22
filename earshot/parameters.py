@@ -30,3 +30,15 @@ class ModelParameters(object):
 @attr.s
 class TrainingParameters(object):
     pass
+
+@attr.s
+class AnalyzerParameters(object):
+    '''
+    Class for holding/checking/verifying parameters relevant to analysis of EARShot model
+    output.
+    '''
+    model_output_path = attr.ib(kw_only=True,validator=[attr.validators.instance_of(str),file_not_found])
+    abs_acc_crit = attr.ib(kw_only=True,default=0.7)
+    rel_acc_crit = attr.ib(kw_only=True,default=0.05)
+    td_acc_crit = attr.ib(kw_only=True,default=(10,0.05),validator=attr.validators.instance_of(tuple))
+    step_cut = attr.ib(kw_only=True,default=True,validator=attr.validators.instance_of(bool))

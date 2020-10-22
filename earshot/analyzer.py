@@ -76,13 +76,13 @@ class Analyzer:
                     # words are rhymes
                     self.category_dict[target_word, 'Rhyme'].append(compare_word_indx)
                     unrelated = False
-                if are_neighbors(target_pron,compare_pron):
-                    # words are Levenshtein neighbors
-                    self.category_dict[target_word, 'DAS_Neighborhood'].append(compare_word_indx)
-                    unrelated = False
                 if unrelated:
                     # words are not in any of the above classes
                     self.category_dict[target_word, 'Unrelated'].append(compare_word_indx)
+                # WARNING: this is going to give unexpected results if we start looking at neighbors at some point . . .
+                if are_neighbors(target_pron,compare_pron):
+                    # words are Levenshtein neighbors
+                    self.category_dict[target_word, 'DAS_Neighborhood'].append(compare_word_indx)
 
 
     def parse_rt_file(self):
