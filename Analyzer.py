@@ -60,16 +60,6 @@ class Analyzer:
         # dump the results
         fname = os.path.join(self.result_Path, 'Test', 'ACC.pydb').replace('\\', '/')
         pickle.dump(acc_data,open(fname,'wb'))
-        #col_order = ['Epoch']+list(acc_data.keys())
-        #f = open(os.path.join(self.result_Path, 'Test', 'ACC.txt').replace('\\', '/'), 'w')
-        # header
-        #h_string = ','.join([k for k in col_order])+'\n'
-        #f.write(h_string)
-        # data
-        #for e in epochs:
-        #    w_s = ','.join([str(e)]+[str(acc_data[k][e]) for k in col_order[1:]])+'\n'
-        #    f.write(w_s)
-        #f.close()
 
 
     def parse_cf_file(self):
@@ -104,12 +94,6 @@ class Analyzer:
         # now dump the results
         fname = os.path.join(self.result_Path, 'Test', 'CS.pydb').replace('\\', '/')
         pickle.dump(cat_data,open('fname','wb'))
-        #f = open(os.path.join(self.result_Path, 'Test', 'CS.txt').replace('\\', '/'), 'w')
-        #for e in cat_data:
-        #    for c in cat_data[e]:
-        #        w_s = ','.join([str(e),c]+[str(x) for x in cat_data[e][c]])
-        #        f.write(w_s+'\n')
-        #f.close()
 
 
     def Analysis(self, batch_Steps= 200):
@@ -363,22 +347,31 @@ class Analyzer:
             for compare_Word, compare_Pronunciation in self.pattern_Metadata_Dict['Pronunciation_Dict'].items():
                 compare_Word_Index = self.word_Index_Dict[compare_Word]
 
-                unrelated = True
-
                 if target_Word == compare_Word:
+                    # word is the target; move on
                     self.category_Dict[target_Word, 'Target'].append(compare_Word_Index)
-                    unrelated = False
-                if target_Pronunciation[0:2] == compare_Pronunciation[0:2] and target_Word != compare_Word: #Cohort
+                    continue
+                # words cannot be both cohorts or rhymes
+                if target_Pronunciation[0:2] == compare_Pronunciation[0:2] and target_Word != compare_Word:
+                    # words are in the same cohort
                     self.category_Dict[target_Word, 'Cohort'].append(compare_Word_Index)
-                    unrelated = False
-                if target_Pronunciation[1:] == compare_Pronunciation[1:] and target_Pronunciation[0] != compare_Pronunciation[0] and target_Word != compare_Word:   #Rhyme
+                    # they may also be neighbors
+                    if self.DAS_Neighborhood_Checker(target_Pronunciation, compare_Pronunciation):   #Neighborhood
+                        self.category_Dict[target_Word, 'DAS_Neighborhood'].append(compare_Word_Index)
+                    continue
+                elif target_Pronunciation[1:] == compare_Pronunciation[1:] and target_Pronunciation[0] != compare_Pronunciation[0] and target_Word != compare_Word:
+                    # words are rhymes and by this definition automatically neighbors
                     self.category_Dict[target_Word, 'Rhyme'].append(compare_Word_Index)
-                    unrelated = False
-                if unrelated:
-                    self.category_Dict[target_Word, 'Unrelated'].append(compare_Word_Index)  #Unrelated
-                #For test
+                    self.category_Dict[target_Word, 'DAS_Neighborhood'].append(compare_Word_Index)
+                    continue
+                # words may still be neighbors
                 if self.DAS_Neighborhood_Checker(target_Pronunciation, compare_Pronunciation):   #Neighborhood
                     self.category_Dict[target_Word, 'DAS_Neighborhood'].append(compare_Word_Index)
+                    continue
+
+                # if we made it here, the two words must be unrelated
+                self.category_Dict[target_Word, 'Unrelated'].append(compare_Word_Index)  #Unrelated
+
 
     def DAS_Neighborhood_Checker(self, pronunciation1, pronunciation2):   #Delete, Addition, Substitution neighborhood checking
         #Same pronunciation
