@@ -1,1 +1,1 @@
-__all__ = ["parameters","patterns"]
+__all__ = ["parameters","patterns","phonology"]

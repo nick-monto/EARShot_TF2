@@ -37,7 +37,7 @@ class TestPhonology(unittest.TestCase):
         # finally, if you send in the same word twice all should fail
         self.assertFalse(are_rhymes(self.tape,self.tape))
         self.assertFalse(are_neighbors(self.tape,self.tape))
-        self.assertFalse(are_cohorts(self.tape,self.tape))                    
+        self.assertFalse(are_cohorts(self.tape,self.tape))
 
 if __name__ == '__main__':
     unittest.main()
