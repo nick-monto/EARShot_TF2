@@ -25,7 +25,10 @@ class PatternParameters(object):
 
 @attr.s
 class ModelParameters(object):
-    pass
+    '''
+    Class for holding parameters relevant to building the EARShot network.
+    '''
+    model_hidden = attr.ib(kw_only=True,default={'type':'LSTM','size':512},validator=attr.validators.instance_of(dict))
 
 @attr.s
 class TrainingParameters(object):
