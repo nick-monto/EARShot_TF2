@@ -137,7 +137,7 @@ class Analyzer:
                 data = self.generate_data(output, word, identifier) #[Num_Words, Steps]
                 rt_dict = self.generate_rt(word, identifier, data)
                 cf_dict = self.generate_category_flow(word, data)
-                reaction_Times.append('\t'.join(['{}'.format(x) for x in [epoch,word,identifier,pattern_type,'.'.join(self.pattern_parameters.lexicon[word]),
+                reaction_times.append('\t'.join(['{}'.format(x) for x in [epoch,word,identifier,pattern_type,'.'.join(self.pattern_parameters.lexicon[word]),
                         len(self.pattern_parameters.lexicon[word]),self.adj_length_dict[word],len(self.category_dict[word, 'Cohort']),len(self.category_dict[word, 'Rhyme']),
                         len(self.category_dict[word, 'DAS_Neighborhood']),rt_dict['Onset', 'Absolute'],rt_Dict['Onset', 'Relative'],rt_Dict['Onset', 'Time_Dependent'],
                         rt_Dict['Offset', 'Absolute'],rt_Dict['Offset', 'Relative'],rt_Dict['Offset', 'Time_Dependent']]]))
@@ -147,17 +147,18 @@ class Analyzer:
                         category_count = np.nan
                     else:
                         category_count = len(self.category_dict[word, category])
-                    category_Flows.append('\t'.join(['{}'.format(x) for x in [epoch,word,identifier,pattern_type,'.'.join(self.pattern_parameters.lexicon[word]),
+                    category_flows.append('\t'.join(['{}'.format(x) for x in [epoch,word,identifier,pattern_type,'.'.join(self.pattern_parameters.lexicon[word]),
                         len(self.pattern_parameters.lexicon[word]),self.adj_length_dict[word],len(self.category_dict[word, 'Cohort']),len(self.category_dict[word, 'Rhyme']),
                         len(self.category_dict[word, 'DAS_Neighborhood']),category,category_count,not np.isnan(rt_dict["Onset", "Time_Dependent"])]
                         + ['{:.5f}'.format(x) for x in cf_dict[category]]]))
-
+                # write the progress bar
                 progress(index + 1,outputs.shape[0],status=f)
+            # newline? flushes the buffer? not sure why this is here
             print()
         # these files could be removed if we were sure the parse_ functions harvest everything we want
-        with open(os.path.join(self.result_Path, 'Test', 'RTs.txt').replace('\\', '/'), 'w') as f:
+        with open(os.path.join(self.analyzer_parameters.model_output_path, 'Test', 'RTs.txt').replace('\\', '/'), 'w') as f:
                 f.write('\n'.join(reaction_Times))
-        with open(os.path.join(self.result_Path, 'Test', 'Category_Flows.txt').replace('\\', '/'), 'w') as f:
+        with open(os.path.join(self.analyzer_parameters.model_output_path, 'Test', 'Category_Flows.txt').replace('\\', '/'), 'w') as f:
                 f.write('\n'.join(category_Flows))
 
 
@@ -260,17 +261,38 @@ class Analyzer:
         # time-dependent RT
         td_check_array_crit = target_array > other_max_array + td_cut
         td_check_array_sus = target_array > other_max_array
-        for step in range(self.max_Step - td_T):
+        for step in range(self.max_step - td_T):
             if all(np.hstack([td_check_array_crit[step:step + td_T],td_check_array_sus[step + td_T:]])):
                 rt_Dict['Onset', 'Time_Dependent'] = step
                 break
         # Calculate Offset RT
         if not np.isnan(rt_dict['Onset', 'Time_Dependent']):
-            rt_dict['Offset', 'Time_Dependent'] = rt_dict['Onset', 'Time_Dependent'] - self.step_Dict[word, identifier]
+            rt_dict['Offset', 'Time_Dependent'] = rt_dict['Onset', 'Time_Dependent'] - self.step[word, identifier]
         else:
             rt_dict['Offset', 'Time_Dependent'] = np.nan
 
         return rt_dict
+
+
+    def generate_cf(self, word, data):
+        '''
+        Over-time similarity of target words to cohorts and rhymes, as well as unrelated words
+        '''
+        cf_dict = {}
+
+        for category in ['Target', 'Cohort', 'Rhyme', 'Unrelated']:
+            if len(self.category_dict[word, category]) > 0:
+                # mean over several flows from the same category
+                cf_dict[category] = np.mean(data[self.category_dict[word, category],:], axis=0)
+            else:
+                # nan if the word doesn't match any category
+                cf_dict[category] = np.zeros((data.shape[1])) * np.nan
+
+        cf_dict['All'] = np.mean(data, axis=0)
+        # most activated word other than the target
+        cf_dict['Other_Max'] = np.max(np.delete(data, self.word_index[word], 0), axis=0)
+
+        return cf_dict
 
 
     def parse_rt_file(self):

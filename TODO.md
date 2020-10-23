@@ -16,7 +16,7 @@
   - try to comment out device lines to see if we can utilize > 1 GPU
   - convert to `python` module (this is happening - KB)
   - better/standardized formatting (CB; KB is doing this as he does the modularization)
-  - `excluded_Identifier`: can you useit to leave out a talker AND/OR a word (e.g. leave out all of Ava's items, or all instances of YELP, or AVA_YELP)?
+  - `excluded_Identifier`: can you use it to leave out a talker AND/OR a word (e.g. leave out all of Ava's items, or all instances of YELP, or AVA_YELP)?
   - add docstrings to methods/classes (doing this as we rewrite to make a module)
   - `sphinx` for automatic documentation generation (CB)
   - add everyone to R drive or lab NAS for big file storage (JM)
@@ -31,7 +31,7 @@
   - patterns.PatternGenerator.generate_metadata() needs to be rethought
   - ~~~original Heejo code lists two words as "unrelated" if they are not identical, in the same cohort, or rhymes but THEN checks for 1-step neighborhood.  How can a word be called both "unrelated" and a DAS neighbor?? (If we start looking at neighbors, this is going to be super confusing.)~~~
   - ~~~need to write tests for phonology.py (though I know my edit_dist function works)~~~
-  - need to write tests for analyzer.py
+  - need to write tests for new analyzer.py
 
 ## Under Discussion:
 
