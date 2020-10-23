@@ -1,1 +1,1 @@
-__all__ = ["parameters","patterns","phonology","audio","progressbar"]
+__all__ = ["parameters","patterns","phonology","audio","progressbar","model","analyzer"]
