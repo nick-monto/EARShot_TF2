@@ -4,7 +4,7 @@ from collections import deque, Sequence
 from threading import Thread
 from random import shuffle, randint
 
-from Audio import spectrogram, melspectrogram
+#from Audio import spectrogram, melspectrogram
 from ProgressBar import progress
 
 with open('Hyper_Parameters.json', 'r') as f:
@@ -23,8 +23,8 @@ class Feeder:
         self.is_Training = is_Training
         self.start_Epoch = start_Epoch
         self.Pattern_Metadata_Load()
-        
-        
+
+
         if isinstance(excluded_Identifier, str):
             self.excluded_Identifier_List = [excluded_Identifier.upper()]
         elif isinstance(excluded_Identifier, Sequence): # When multiple excluded identifier used. But currently this function is not being used.
@@ -33,7 +33,7 @@ class Feeder:
             self.excluded_Identifier_List = []
 
         if start_Epoch > 0:
-            self.Exclusion_Info_Dict_Load()            
+            self.Exclusion_Info_Dict_Load()
         else:
             self.Exclusion_Info_Dict_Generate()
 
@@ -44,7 +44,7 @@ class Feeder:
         if self.is_Training and start_Epoch >= hp_Dict['Train']['Max_Epoch_without_Exclusion']:
             print('WARNING: The start epoch is greater than or equal to maximum epoch. Training mode turned off.')
             self.is_Training = False
-        
+
         if self.is_Training:
             self.is_Finished = False
             self.Pattern_Metadata_Load()
@@ -64,7 +64,7 @@ class Feeder:
     def Exclusion_Info_Dict_Generate(self):
         '''
         When 'Exclusion_Mode' is 'P'(Pattern based), each identifier's partial pattern will not be trained.
-        When 'Exclusion_Mode' is 'I'(Identifier based), a identifier's all pattern will not be trained.        
+        When 'Exclusion_Mode' is 'I'(Identifier based), a identifier's all pattern will not be trained.
         When 'Exclusion_Mode' is 'M'(Mix based), each identifier's partial pattern will not be trained and a identifier's all pattern will not be trained.
         When 'Exclusion_Mode' is ''(None), all pattern will be trained.
 
@@ -76,12 +76,12 @@ class Feeder:
             'Identifier_Excluded': {},  # Only trained when epoch is between 'with' and 'without' exclusion.
             'Test_Only': {},    # Always not trained.
             }
-        
+
         self.pattern_Path_Dict['Test_Only'].update({
             (word, identifier): path
             for (word, identifier), path in self.pattern_Metadata_Dict["Pattern_Path_Dict"].items()
             if identifier in hp_Dict['Train']['Test_Only_Identifier_List']
-            })        
+            })
 
         if hp_Dict['Train']['Exclusion_Mode'] is None:
             self.pattern_Path_Dict['Training'].update({
@@ -95,10 +95,10 @@ class Feeder:
         identifier_List = list(set([identifier for _, identifier in self.pattern_Metadata_Dict["Pattern_Path_Dict"].keys()]))
         word_List = list(set([word for word, _ in self.pattern_Metadata_Dict["Pattern_Path_Dict"].keys()]))
         for excluded_Identifier in hp_Dict['Train']['Test_Only_Identifier_List']:
-            identifier_List.remove(excluded_Identifier)            
+            identifier_List.remove(excluded_Identifier)
         shuffle(identifier_List)
         shuffle(word_List)
-        
+
         if hp_Dict['Train']['Exclusion_Mode'].upper() == 'P':   # Word excluded
             excluded_Size = len(word_List) // len(identifier_List)
             for index, identifier in enumerate(identifier_List):
@@ -107,7 +107,7 @@ class Feeder:
                 for word in word_List[index * excluded_Size:(index + 1) * excluded_Size]:
                     self.pattern_Path_Dict['Pattern_Excluded'][word, identifier] = self.pattern_Metadata_Dict["Pattern_Path_Dict"][word, identifier]
             return
-        
+
         for excluded_Identifier in self.excluded_Identifier_List:
             if not excluded_Identifier in identifier_List:
                 raise ValueError('Identifier \'{}\' is not included in the pattern data.'.format(excluded_Identifier))
@@ -147,7 +147,7 @@ class Feeder:
 
         with open(training_Metadata_File, 'rb') as f:
             self.pattern_Path_Dict = pickle.load(f)
-        
+
         word_List = list(set([word for word, _ in self.pattern_Metadata_Dict["Pattern_Path_Dict"].keys()]))
         identifier_List = list(set([identifier for _, identifier in self.pattern_Metadata_Dict["Pattern_Path_Dict"].keys()]))
         path_List = list(set([path for path in self.pattern_Metadata_Dict["Pattern_Path_Dict"].values()]))
@@ -164,12 +164,12 @@ class Feeder:
     def Pattern_Generate(self):
         pattern_Cache_Dict = {}
         epoch = self.start_Epoch
-        
+
         while True:
             pattern_Path_List = []
             pattern_Path_List.extend([path for path in self.pattern_Path_Dict['Training'].values()])
             if epoch < hp_Dict['Train']['Max_Epoch_with_Exclusion']:
-                pass    
+                pass
             elif epoch < hp_Dict['Train']['Max_Epoch_without_Exclusion']:
                 pattern_Path_List.extend([path for path in self.pattern_Path_Dict['Pattern_Excluded'].values()])
                 pattern_Path_List.extend([path for path in self.pattern_Path_Dict['Identifier_Excluded'].values()])
@@ -184,7 +184,7 @@ class Feeder:
                 ]
 
             current_Index = 0
-            is_New_Epoch = True            
+            is_New_Epoch = True
             while current_Index < len(pattern_Batch_List):
                 #If queue is full, pattern generating is stopped while 0.1 sec.
                 if len(self.pattern_Queue) >= hp_Dict['Train']['Max_Queue']:
@@ -192,7 +192,7 @@ class Feeder:
                     continue
 
                 pattern_Batch = pattern_Batch_List[current_Index]
-                
+
                 acoustics = []
                 semantics = []
                 acoustic_Steps = []
@@ -221,13 +221,13 @@ class Feeder:
                     {
                         'acoustics': acoustics,
                         'acoustic_Steps': acoustic_Steps,
-                        'semantics': semantics,                        
+                        'semantics': semantics,
                         }
                     ])
                 current_Index += 1
                 is_New_Epoch = False
             epoch += 1
-    
+
     def Get_Pattern(self):
         while len(self.pattern_Queue) == 0: #When training speed is faster than making pattern, model should be wait.
             time.sleep(0.01)
@@ -265,12 +265,12 @@ class Feeder:
             ]
 
         test_Pattern_List = []
-        for pattern_Batch in pattern_Batch_List:            
+        for pattern_Batch in pattern_Batch_List:
             acoustics = []
             # semantics = []
             # acoustic_Steps = []
 
-            for path in pattern_Batch:                
+            for path in pattern_Batch:
                 pattern_Dict = patterns[path]
                 acoustics.append(pattern_Dict['Acoustic'])
                 # semantics.append(pattern_Dict['Semantic'])
@@ -283,11 +283,13 @@ class Feeder:
             test_Pattern_List.append({
                 'acoustics': acoustics,
                 # 'acoustic_Steps': acoustic_Steps,
-                # 'semantics': semantics,                
+                # 'semantics': semantics,
                 })
 
         return pattern_Info_List, test_Pattern_List
 
+    # I think we can delete this; Model.py never calls it
+    '''
     def Get_Test_Pattern_from_Wav(self, wav_Path_List):
         patterns = {}
         for path in wav_Path_List:
@@ -340,12 +342,13 @@ class Feeder:
         test_Pattern_List = []
         for pattern_Batch in pattern_Batch_List:
             acoustics = [patterns[path] for path in pattern_Batch]
-            acoustics = self.Force_Pattern_Stack(acoustics, max_Step= max_Step).astype(np.float32)            
+            acoustics = self.Force_Pattern_Stack(acoustics, max_Step= max_Step).astype(np.float32)
             test_Pattern_List.append({
                 'acoustics': acoustics,
                 })
 
         return test_Pattern_List
+    '''
 
     def Force_Pattern_Stack(self, pattern_List, max_Step = None):
         max_Step = max_Step or max([pattern.shape[0] for pattern in pattern_List])
@@ -361,7 +364,7 @@ class Feeder:
 
 if __name__ == "__main__":
     new_Feeder = Feeder(0, True)
-    x = new_Feeder.Get_Test_Pattern()    
+    x = new_Feeder.Get_Test_Pattern()
     print(x)
     print(len(x))
     assert False

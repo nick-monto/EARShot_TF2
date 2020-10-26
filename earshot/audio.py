@@ -12,7 +12,6 @@ def preemphasis(x, preemphasis = 0.97):
 def inv_preemphasis(x, preemphasis = 0.97):
     return signal.lfilter([1], [1, -preemphasis], x)
 
-
 def spectrogram(y, dimension, frame_shift, frame_len, samp_rate, ref_level_db = 20):
     '''
     Computes a spectogram with dimension frequencies from a time series/audio signal.
@@ -30,17 +29,10 @@ def mel_spectrogram(y, spec_dimension, frame_shift, frame_len, dimension, samp_r
     S = _amp_to_db(_linear_to_mel(np.abs(D), spec_dimension, dimension, samp_rate))
     return _normalize(S) if max_abs is None else _symmetric_normalize(S, max_abs_value= max_abs)
 
-    
-
 def inv_spectrogram(spectrogram, num_freq, frame_shift_ms, frame_length_ms, sample_rate, ref_level_db = 20, power = 1.5, griffin_lim_iters= 60):
     '''Converts spectrogram to waveform using librosa'''
     S = _db_to_amp(_denormalize(spectrogram) + ref_level_db)  # Convert back to linear
     return inv_preemphasis(_griffin_lim(S ** power, num_freq, frame_shift_ms, frame_length_ms, sample_rate, griffin_lim_iters= griffin_lim_iters))          # Reconstruct phase
-
-def mel_spectrogram(y, spec_dimension, frame_shift, frame_len, dimension, samp_rate, max_abs = None):
-    D = _stft(preemphasis(y), num_freq, frame_shift_ms, frame_length_ms, sample_rate)
-    S = _amp_to_db(_linear_to_mel(np.abs(D), num_freq, num_mels, sample_rate))
-    return _normalize(S) if max_abs_value is None else _symmetric_normalize(S, max_abs_value= max_abs_value)
 
 def _griffin_lim(S, num_freq, frame_shift_ms, frame_length_ms, sample_rate, griffin_lim_iters = 60):
     '''librosa implementation of Griffin-Lim
