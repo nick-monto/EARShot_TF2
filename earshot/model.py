@@ -4,8 +4,8 @@ from keras.layers import Dense, Masking, LSTM
 
 class Earshot(object):
     '''
-    Class for EARShot model creation/compilation using keras.  Just a stub right
-    now with some suggestions as to how to get this working.
+    Class for EARShot model creation/compilation/training using keras.  Just a stub
+    right now with some suggestions as to how to get this working.
 
     The model will compile properly, and the mask is correctly propagated all
     the way to the output and not lost partway through.
@@ -37,5 +37,6 @@ class Earshot(object):
         self.earshot_model.add(Masking(mask_value=0., input_shape=(max_seq_len,spec_chan)))
         if self.model_parameters.model_hidden['type'] == 'LSTM':
             self.earshot_model.add(LSTM(self.model_parameters.model_hidden['size'],return_sequences=True))
+        # need to add activation here
         self.earshot_model.add(Dense(self.pattern_parameters.semantic_dict['embedding_dim']))
         self.earshot_model.compile(loss='mean_squared_error',optimizer='adam')
