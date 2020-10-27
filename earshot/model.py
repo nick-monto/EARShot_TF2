@@ -1,8 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Input, Dense, Masking, LSTM
-from tensorflow.python.keras import activations
-from tensorflow.python.keras.backend import softmax
 
 def Earshot(input_shape, output_len, batch_size):
     inputs = Input(shape=input_shape, batch_size=batch_size, name="input")
