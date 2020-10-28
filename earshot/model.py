@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Input, Dense, Masking, LSTM
