@@ -220,9 +220,9 @@ class PatternGenerator(object):
             word_filtered_pattern_files = [pattern_file for pattern_file, (word, talker) in metadata_dict['Word_and_Identifier_Dict'].items()]
         # filter on talkers
         if talker_list is not None:
-            talker_filtered_pattern_files = [pattern_file for pattern_file, (word, talker) in metadata_Dict['Word_and_Identifier_Dict'].items() if talker in talker_list]
+            talker_filtered_pattern_files = [pattern_file for pattern_file, (word, talker) in metadata_dict['Word_and_Identifier_Dict'].items() if talker in talker_list]
         else:
-            talker_filtered_pattern_files = [pattern_file for pattern_file, (word, talker) in metadata_Dict['Word_and_Identifier_Dict'].items()]
+            talker_filtered_pattern_files = [pattern_file for pattern_file, (word, talker) in metadata_dict['Word_and_Identifier_Dict'].items()]
 
         # get a list of patterns in both filtered lists
         wordtalker_union = []
@@ -232,7 +232,7 @@ class PatternGenerator(object):
 
         sub_metadata_dict['Pattern_Path_Dict'] = {(word,talker): pattern_file for (word,talker), pattern_file in metadata_dict['Pattern_Path_Dict'].items() if pattern_file in wordtalker_union}
         # the word and identifier dict is just a reverse of the pattern path dict
-        for k,v in sub_metdata_dict['Pattern_Path_Dict']:
+        for k,v in sub_metadata_dict['Pattern_Path_Dict']:
             sub_metadata_dict['Word_and_Identifier_Dict'][v] = k
 
         sub_metadata_dict['Step_Dict'] = {pattern_file:step for pattern_file, step in metadata_dict['Step_Dict'].items() if pattern_file in wordtalker_union}
