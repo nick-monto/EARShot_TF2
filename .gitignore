@@ -133,3 +133,6 @@ Results.X/
 
 # Visual Studio
 .vscode
+
+# module-specific ignores
+earshot/tests/test-pat
