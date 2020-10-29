@@ -2,17 +2,17 @@ import pandas as pd
 import numpy as np
 from earshot.model import Earshot
 
-object = pd.read_pickle(r'./earshot/test-input/FRUIT_AGNES.PICKLE')
-object2 = pd.read_pickle(r'./earshot/test-input/FRUIT_ALEX.PICKLE')
-object3 = pd.read_pickle(r'./earshot/test-input/FRUIT_ALLISON.PICKLE')
-object4 = pd.read_pickle(r'./earshot/test-input/FRUIT_AVA.PICKLE')
-object5 = pd.read_pickle(r'./earshot/test-input/FRUIT_BRUCE.PICKLE')
+patt1 = pd.read_pickle(r'./tests/test-input/FRUIT_AGNES.PICKLE')
+patt2 = pd.read_pickle(r'./tests/test-input/FRUIT_ALEX.PICKLE')
+patt3 = pd.read_pickle(r'./tests/test-input/FRUIT_ALLISON.PICKLE')
+patt4 = pd.read_pickle(r'./tests/test-input/FRUIT_AVA.PICKLE')
+patt5 = pd.read_pickle(r'./tests/test-input/FRUIT_BRUCE.PICKLE')
 
-acoustics = [object['Acoustic'],
-             object2['Acoustic'],
-             object3['Acoustic'],
-             object4['Acoustic'],
-             object5['Acoustic']]
+acoustics = [patt1['Acoustic'],
+             patt2['Acoustic'],
+             patt3['Acoustic'],
+             patt4['Acoustic'],
+             patt5['Acoustic']]
 
 padded_acoustics = []
 for i in acoustics:
@@ -25,11 +25,11 @@ for i in acoustics:
     else:
         padded_acoustics.append(i)
 
-semantics = np.stack((object['Semantic'],
-                      object2['Semantic'],
-                      object3['Semantic'],
-                      object4['Semantic'],
-                      object5['Semantic']))
+semantics = np.stack((patt1['Semantic'],
+                      patt2['Semantic'],
+                      patt3['Semantic'],
+                      patt4['Semantic'],
+                      patt5['Semantic']))
 
 model = Earshot(input_shape=(np.array(padded_acoustics).shape[1],
                              np.array(padded_acoustics).shape[2]),
