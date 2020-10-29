@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from earshot.model import Earshot
+from earshot.parameters import ModelParameters
 
 patt1 = pd.read_pickle(r'./tests/test-input/FRUIT_AGNES.PICKLE')
 patt2 = pd.read_pickle(r'./tests/test-input/FRUIT_ALEX.PICKLE')
@@ -31,10 +32,12 @@ semantics = np.stack((patt1['Semantic'],
                       patt4['Semantic'],
                       patt5['Semantic']))
 
+p = ModelParameters()
+
 model = Earshot(input_shape=(np.array(padded_acoustics).shape[1],
                              np.array(padded_acoustics).shape[2]),
                 output_len=semantics.shape[1],
-                batch_size=1)
+                batch_size=1,p)
 
 model.fit(
     x=np.array(padded_acoustics),

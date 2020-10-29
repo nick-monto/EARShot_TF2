@@ -1,11 +1,13 @@
 import unittest,glob,os
 from earshot.model import Earshot
+from earshot.parameters import ModelParameters
 
 class TestModel(unittest.TestCase):
 
     def setUp(self):
         # model with dummy sizing
-        self.es = Earshot((10,10),10,10)
+        p = ModelParameters()
+        self.es = Earshot((10,10),10,10,p)
 
     def test_model_mask(self):
         # mask is defined in the masking layer, so it should have no input
