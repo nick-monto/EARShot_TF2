@@ -28,7 +28,9 @@ class ModelParameters(object):
     '''
     Class for holding parameters relevant to building the EARShot network.
     '''
-    model_hidden = attr.ib(kw_only=True,default={'type':'LSTM','size':512},validator=attr.validators.instance_of(dict))
+    hidden = attr.ib(kw_only=True,default={'type':'LSTM','size':512},validator=attr.validators.instance_of(dict))
+    train_loss = attr.ib(kw_only=True,default='CE',validator=attr.validators.in_(['CE','MSE']))
+    optimizer = attr.ib(kw_only=True,default={'ADAM':{'beta_1':0.9,'beta_2':0.999,'epsilon':1e-07}},validator=attr.validators.instance_of(dict))
 
 @attr.s
 class TrainingParameters(object):

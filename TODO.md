@@ -32,14 +32,15 @@
   - ~~~original Heejo code lists two words as "unrelated" if they are not identical, in the same cohort, or rhymes but THEN checks for 1-step neighborhood.  How can a word be called both "unrelated" and a DAS neighbor?? (If we start looking at neighbors, this is going to be super confusing.)~~~
   - ~~~need to write tests for phonology.py (though I know my edit_dist function works)~~~
   - need to write tests for new analyzer.py
-  - need to add padding to the inputs in patterns.py
+  - ~~~need to add padding to the inputs in patterns.py~~~
+  - we need to write noam weight decay as a custom learning rate schedule (has to be a LearningRateScheduler and passed in the callbacks to fit), or switch to a simpler weight decay
+  scheme that keras already supports
 
 ## Under Discussion:
 
 (These items should either be moved into Tasks or deleted)
 
   - more flexibility in input patterns; have the model auto-sniff input/output sizes from a pattern file
-  - shift to keras to clean up model instantiation etc.
 
 ## Notes
 
