@@ -1,20 +1,25 @@
+from earshot.parameters import ModelParameters
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Input, Dense, Masking, LSTM
+from tensorflow.keras.layers import Dense, GRU, Input, Masking, LSTM
 
 '''
 We should eventually use a container class or derived-from-model class because of
 the proliferation of input arguments (since we need the model construction parameters)
 '''
+
+
 def Earshot(input_shape, output_len, batch_size, model_parameters):
     inputs = Input(shape=input_shape, batch_size=batch_size, name="input")
     x = Masking(mask_value=0, name="mask")(inputs)
 
     # creates the hidden layer based on what's in the input parameters
     if model_parameters.hidden['type'] == "LSTM":
-        x = LSTM(model_parameters.hidden['size'], return_sequences=True, stateful=False, name="LSTM")(x)
+        x = LSTM(model_parameters.hidden['size'],
+                 return_sequences=True, stateful=False, name="LSTM")(x)
     elif model_parameters.hidden['type'] == "GRU":
-        x = GRU(model_parameters.hidden['size'], return_sequences=True, name= "GRU")(x)
+        x = GRU(model_parameters.hidden['size'],
+                return_sequences=True, name="GRU")(x)
 
     # loss function and output activation are coupled, this sets them both
     if model_parameters.train_loss == 'CE':
@@ -33,3 +38,47 @@ def Earshot(input_shape, output_len, batch_size, model_parameters):
 
     model.compile(loss=loss, optimizer="adam")
     return model
+
+# sub-classing from keras Model
+
+class EARSHOT(Model):
+    '''
+    EARSHOT model sub-classing tf.keras.Model
+    '''
+    def __init__(self, output_len, model_parameters):
+        '''
+        output_len = length of target vector
+        model_parameters = model hyper parameters pulled from parameters.py
+        '''
+        super(EARSHOT, self).__init__()
+        self.model_parameters = model_parameters
+        self.mask = Masking(mask_value=0, name="mask")
+
+        if self.model_parameters.hidden['type'] == "LSTM":
+            self.lstm = LSTM(self.model_parameters.hidden['size'],
+                             return_sequences=True, stateful=False, 
+                             name="LSTM")
+        elif self.model_parameters.hidden['type'] == "GRU":
+            self.gru = GRU(self.model_parameters.hidden['size'],
+                           return_sequences=True, name="GRU")
+
+        # loss function and output activation are coupled, this sets them both
+        if self.model_parameters.train_loss == 'CE':
+            self.loss = "binary_crossentropy"
+            self.activation = tf.nn.sigmoid
+        elif self.model_parameters.train_loss == 'MSE':
+            self.loss = "mean_squared_error"
+            self.activation = tf.nn.tanh
+
+        self.dense = Dense(output_len, activation=self.activation)
+
+    def call(self, inputs):
+        '''
+        Input is provided at training time.
+        '''
+        x = self.mask(inputs)
+        if self.model_parameters.hidden['type'] == "LSTM":
+            x = self.lstm(x)
+        elif self.model_parameters.hidden['type'] == "GRU":
+            x = self.gru(x)
+        return self.dense(x)
