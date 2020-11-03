@@ -1,14 +1,15 @@
-from earshot.parameters import ModelParameters
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Dense, GRU, Input, Masking, LSTM
+
+tf.keras.backend.set_floatx('float64')
 
 '''
 We should eventually use a container class or derived-from-model class because of
 the proliferation of input arguments (since we need the model construction parameters)
 '''
 
-
+'''
 def Earshot(input_shape, output_len, batch_size, model_parameters):
     inputs = Input(shape=input_shape, batch_size=batch_size, name="input")
     x = Masking(mask_value=0, name="mask")(inputs)
@@ -40,6 +41,7 @@ def Earshot(input_shape, output_len, batch_size, model_parameters):
     return model
 
 # sub-classing from keras Model
+'''
 
 class EARSHOT(Model):
     '''
@@ -50,16 +52,17 @@ class EARSHOT(Model):
         output_len = length of target vector
         model_parameters = model hyper parameters pulled from parameters.py
         '''
-        super(EARSHOT, self).__init__()
+        super(EARSHOT, self).__init__(name='earshot')
         self.model_parameters = model_parameters
+        # INPUT SHAPE IS HARD CODED - FIX THIS
         self.mask = Masking(mask_value=0, name="mask")
 
         if self.model_parameters.hidden['type'] == "LSTM":
-            self.lstm = LSTM(self.model_parameters.hidden['size'],
-                             return_sequences=True, stateful=False, 
+            self.hidden = LSTM(self.model_parameters.hidden['size'],
+                             return_sequences=True, stateful=False,
                              name="LSTM")
         elif self.model_parameters.hidden['type'] == "GRU":
-            self.gru = GRU(self.model_parameters.hidden['size'],
+            self.hidden = GRU(self.model_parameters.hidden['size'],
                            return_sequences=True, name="GRU")
 
         # loss function and output activation are coupled, this sets them both
@@ -70,15 +73,13 @@ class EARSHOT(Model):
             self.loss = "mean_squared_error"
             self.activation = tf.nn.tanh
 
-        self.dense = Dense(output_len, activation=self.activation)
+        self.dense_output = Dense(output_len, activation=self.activation)
+
 
     def call(self, inputs):
         '''
         Input is provided at training time.
         '''
         x = self.mask(inputs)
-        if self.model_parameters.hidden['type'] == "LSTM":
-            x = self.lstm(x)
-        elif self.model_parameters.hidden['type'] == "GRU":
-            x = self.gru(x)
-        return self.dense(x)
+        x = self.hidden(x)
+        return self.dense_output(x)
