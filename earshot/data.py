@@ -1,4 +1,3 @@
-from keras.models import Sequential
 from numpy import ones
 
 def pad(data_2d, ref_shape, pad_val=0.0):

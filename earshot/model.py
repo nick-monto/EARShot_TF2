@@ -83,3 +83,10 @@ class EARSHOT(Model):
         x = self.mask(inputs)
         x = self.hidden(x)
         return self.dense_output(x)
+
+    def model(self, input_shape):
+        '''
+        Function for model introspection
+        '''
+        x = Input(input_shape)
+        return Model(inputs=[x], outputs=self.call(x))
