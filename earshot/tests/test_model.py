@@ -25,6 +25,9 @@ class TestModel(unittest.TestCase):
         self.es.compile(loss=self.es.loss,optimizer="adam")
 
 
+    def test_learning_schedule(self):
+        pass
+
     def test_model_compile(self):
         # model should not be none after all that
         self.assertIsNotNone(self.es.compile)

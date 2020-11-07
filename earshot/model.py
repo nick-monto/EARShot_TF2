@@ -1,4 +1,4 @@
-from numpy import power
+from numpy import power,min,max,nan,floor
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential, optimizers
 from tensorflow.keras.layers import Dense, GRU, Input, Masking, LSTM
@@ -6,15 +6,45 @@ from keras.callbacks import LearningRateScheduler
 
 tf.keras.backend.set_floatx('float64')
 
-
-def noam_decay(initial,warmup,minimum):
+'''
+Learning rate adjustment functions.
+'''
+def noam_decay_lr(initial,warmup,minimum):
     '''
     Wrapper to define noam decay; the wrapper method allows us to make the
     lr update depend on additional parameters.
+
+    The maximal learning rate under this scheme occurs at epoch = warmup, and
+    will be equal to initial/warmup.
     '''
     def schedule(epoch):
-        l = initial*power(warmup,-0.5)*min(epoch*power(warmup,-1.5),power(epoch,-0.5))
-        return max(l,mininum)
+        lr = initial*power(warmup,-0.5)*min([(epoch+1)*power(warmup,-1.5),power(epoch+1,-0.5)])
+
+    return LearningRateScheduler(schedule)
+
+
+def step_decay_lr(initial,drop_factor,drop_every):
+    '''
+    Wrapper that just drops the learning rate by a fixed factor (drop_factor) every drop_every
+    epochs.
+    '''
+    def schedule(epoch):
+        exp_fac = floor((1+epoch)/drop_every)
+        lr = initial*power(drop_factor,exp_factor)
+        return lr
+
+    return LearningRateScheduler(schedule)
+
+
+def polynomial_decay_lr(initial,max_epochs,poly_pow):
+    '''
+    Wrapper that drops the learning rate to zero over max_epochs epochs, with
+    shape given by poly_pow (set poly_pow = 1 to get linear decay).
+    '''
+    def schedule(epoch):
+        decay = power((1 - (epoch/max_epochs)),poly_pow)
+        lr = initial*decay
+        return lr
 
     return LearningRateScheduler(schedule)
 
@@ -41,8 +71,8 @@ class EARSHOT(Model):
         '''
         super(EARSHOT, self).__init__(name='earshot')
         self.model_parameters = model_parameters
-        # INPUT SHAPE IS HARD CODED - FIX THIS
-        self.mask = Masking(mask_value=0, name="mask")
+
+        self.mask = Masking(mask_value=nan, name="mask")
 
         if self.model_parameters.hidden['type'] == "LSTM":
             self.hidden = LSTM(self.model_parameters.hidden['size'],
@@ -62,7 +92,7 @@ class EARSHOT(Model):
 
         # set learning rate schedule
         if self.model_parameters.learning_schedule == 'noam':
-            self.lr_sched = noam_decay(**self.model_parameters['noam'])
+            self.lr_sched = noam_decay_lr(**self.model_parameters['noam'])
             learning_rate = self.model_parameters['noam']['initial']
         elif self.model_parameters.learning_schedule == 'constant':
             self.lr_sched = constant_lr(self.model_parameters['constant']['rate'])
