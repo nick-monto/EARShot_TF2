@@ -2,7 +2,7 @@ from numpy import power,min,max,nan,floor
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential, optimizers
 from tensorflow.keras.layers import Dense, GRU, Input, Masking, LSTM
-from keras.callbacks import LearningRateScheduler
+from tensorflow.keras.callbacks import LearningRateScheduler
 
 tf.keras.backend.set_floatx('float64')
 
@@ -30,7 +30,7 @@ def step_decay_lr(initial,drop_factor,drop_every):
     '''
     def schedule(epoch):
         exp_fac = floor((1+epoch)/drop_every)
-        lr = initial*power(drop_factor,exp_factor)
+        lr = initial*power(drop_factor,exp_fac)
         return lr
 
     return LearningRateScheduler(schedule)
@@ -71,12 +71,11 @@ class EARSHOT(Model):
         '''
         super(EARSHOT, self).__init__(name='earshot')
         self.model_parameters = model_parameters
-
-        self.mask = Masking(mask_value=nan, name="mask")
+        self.mask = Masking(mask_value=-9999, name="mask")
 
         if self.model_parameters.hidden['type'] == "LSTM":
             self.hidden = LSTM(self.model_parameters.hidden['size'],
-                             return_sequences=True, stateful=False,
+                             return_sequences=False, stateful=False,
                              name="LSTM")
         elif self.model_parameters.hidden['type'] == "GRU":
             self.hidden = GRU(self.model_parameters.hidden['size'],
@@ -100,9 +99,9 @@ class EARSHOT(Model):
 
         # optimizer
         if self.model_parameters.optimizer == 'ADAM':
-            self.optimizer = keras.optimizers.Adam(learning_rate=learning_rate,**keras.optimizers['ADAM'])
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate,**tf.keras.optimizers['ADAM'])
         elif self.model_parameters.optimizer == 'SGD':
-            self.optimizer = keras.optimizers.SGD(learning_rate=learning_rate,**keras.optimizers['SGD'])
+            self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate,**tf.keras.optimizers['SGD'])
 
         self.dense_output = Dense(output_len, activation=self.activation)
 
