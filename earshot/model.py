@@ -75,7 +75,7 @@ class EARSHOT(Model):
 
         if self.model_parameters.hidden['type'] == "LSTM":
             self.hidden = LSTM(self.model_parameters.hidden['size'],
-                             return_sequences=False, stateful=False,
+                             return_sequences=True, stateful=False,
                              name="LSTM")
         elif self.model_parameters.hidden['type'] == "GRU":
             self.hidden = GRU(self.model_parameters.hidden['size'],

@@ -3,7 +3,7 @@ from earshot.model import EARSHOT
 from earshot.parameters import ModelParameters
 
 # log desired audio files, provide path to folder containing them
-train_manifest = Manifest('include training directory here')
+train_manifest = Manifest('include path to training directory here')
 
 # generate target SRVs 
 train_manifest.generate_srvs(target='Word', target_len=300, target_on=10)
@@ -11,7 +11,7 @@ train_manifest.generate_srvs(target='Word', target_len=300, target_on=10)
 # create batch generator from the input manifest
 # remove the .sample() to create a batch generator of the whole set
 batch_gen = DataGenerator(df=train_manifest.manifest.sample(25), 
-                          batch_size=5, pad_value=-9999)
+                          batch_size=5, pad_value=-9999, return_seq=True)
 
 p = ModelParameters()
 # instantiate model
@@ -24,3 +24,4 @@ model.fit(
     shuffle = True,
     use_multiprocessing = False
 )
+

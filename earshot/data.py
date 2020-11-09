@@ -1,6 +1,8 @@
+import enum
 import librosa
 import os
 import pandas as pd
+import numpy.matlib as npm
 
 from earshot.audio import *
 from numpy import ones
@@ -95,7 +97,7 @@ class Manifest(object):
 class DataGenerator(Sequence):
     'Generates data for Keras'
 
-    def __init__(self, df, batch_size=32, pad_value=-9999):
+    def __init__(self, df, batch_size=32, pad_value=-9999, return_seq=True):
         '''
         df = manifest dataframe
         batch_size = desired batching size
@@ -107,6 +109,7 @@ class DataGenerator(Sequence):
         self.targets = np.array(self.df['Target'].tolist()).astype(np.float32)
         self.path_list = self.df['Path'].tolist()
         self.indexes = np.arange(len(self.path_list))
+        self.return_seq = return_seq
 
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -128,19 +131,29 @@ class DataGenerator(Sequence):
         return X, y
 
     def __data_generation(self, list_pairs_temp):
-        # X : (n_samples, *dim, n_channels)
         'Generates data containing batch_size samples'
         # Initialization
-        spec = [spectro_calc(path[0]) for path in list_pairs_temp]
-
+        # calculate spectrograms for each item in batch
+        spec = [ spectro_calc(path[0]) for path in list_pairs_temp ]
+        # get max len of batch
         M = max(len(a) for a in spec)
-        padded_spec = [pad(s, (M, s.shape[1]), pad_val=self.pad_value)
-                       for s in spec]
+        # pad all specs in batch to max length
+        padded_spec = [ pad(s, (M, s.shape[1]), pad_val=self.pad_value)
+                       for s in spec ]
         X = np.empty((self.batch_size, M, spec[0].shape[1]))
-        y = np.empty((self.batch_size, len(list_pairs_temp[0][1])), dtype=int)
+        # pad targets if LSTM layer has return_sequence=True
+        if self.return_seq:
+            y = np.empty((self.batch_size, M, len(list_pairs_temp[0][1])), dtype=int)
+            targets = [ npm.repmat(pair[1],spec[i].shape[0],1) for i,pair in enumerate(list_pairs_temp) ]
+            padded_targets = [ pad(i,(M,i.shape[1]),pad_val=self.pad_value) for i in targets ]
+            for i, pair in enumerate(list_pairs_temp):
+                X[i, ] = padded_spec[i]
+                y[i, ] = padded_targets[i]
+        else:
+            y = np.empty((self.batch_size, len(list_pairs_temp[0][1])), dtype=int)
 
-        for i, pair in enumerate(list_pairs_temp):
-            X[i, ] = padded_spec[i]
-            y[i] = pair[1]
+            for i, pair in enumerate(list_pairs_temp):
+                X[i, ] = padded_spec[i]
+                y[i] = pair[1]
 
         return X, y
