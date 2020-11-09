@@ -6,7 +6,7 @@ from earshot.parameters import ModelParameters
 train_manifest = Manifest('include training directory here')
 
 # generate target SRVs 
-train_manifest.generate_labels(target='Word', target_len=300, target_on=10)
+train_manifest.generate_srvs(target='Word', target_len=300, target_on=10)
 
 # create batch generator from the input manifest
 # remove the .sample() to create a batch generator of the whole set
