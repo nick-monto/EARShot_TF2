@@ -1,46 +1,64 @@
-import numpy as np
+from numpy import power,min,max,nan,floor
 import tensorflow as tf
-from tensorflow.keras import Model, Sequential
+from tensorflow.keras import Model, Sequential, optimizers
 from tensorflow.keras.layers import Dense, GRU, Input, Masking, LSTM
+from tensorflow.keras.callbacks import LearningRateScheduler
 
 tf.keras.backend.set_floatx('float64')
 
 '''
-We should eventually use a container class or derived-from-model class because of
-the proliferation of input arguments (since we need the model construction parameters)
+Learning rate adjustment functions.
 '''
+def noam_decay_lr(initial,warmup,minimum):
+    '''
+    Wrapper to define noam decay; the wrapper method allows us to make the
+    lr update depend on additional parameters.
 
-# def Earshot(input_shape, output_len, batch_size, model_parameters):
-#     inputs = Input(shape=input_shape, batch_size=batch_size, name="input")
-#     x = Masking(mask_value=0, name="mask")(inputs)
+    The maximal learning rate under this scheme occurs at epoch = warmup, and
+    will be equal to initial/warmup.
+    '''
+    def schedule(epoch):
+        lr = initial*power(warmup,-0.5)*min([(epoch+1)*power(warmup,-1.5),power(epoch+1,-0.5)])
 
-#     # creates the hidden layer based on what's in the input parameters
-#     if model_parameters.hidden['type'] == "LSTM":
-#         x = LSTM(model_parameters.hidden['size'],
-#                  return_sequences=True, stateful=False, name="LSTM")(x)
-#     elif model_parameters.hidden['type'] == "GRU":
-#         x = GRU(model_parameters.hidden['size'],
-#                 return_sequences=True, name="GRU")(x)
+    return LearningRateScheduler(schedule)
 
-#     # loss function and output activation are coupled, this sets them both
-#     if model_parameters.train_loss == 'CE':
-#         loss = "binary_crossentropy"
-#         activation = tf.nn.sigmoid
-#     elif model_parameters.train_loss == 'MSE':
-#         loss = "mean_squared_error"
-#         activation = tf.nn.tanh
 
-#     # create the output layer with the appropriate activation function; model
-#     #   is compiled with the corresponding matching loss function
-#     outputs = Dense(output_len, activation=activation, name="output")(x)
-#     model = Model(inputs=inputs, outputs=outputs)
+def step_decay_lr(initial,drop_factor,drop_every):
+    '''
+    Wrapper that just drops the learning rate by a fixed factor (drop_factor) every drop_every
+    epochs.
+    '''
+    def schedule(epoch):
+        exp_fac = floor((1+epoch)/drop_every)
+        lr = initial*power(drop_factor,exp_fac)
+        return lr
 
-#     # create the optimizer
+    return LearningRateScheduler(schedule)
 
-#     model.compile(loss=loss, optimizer="adam")
-#     return model
 
-# sub-classing from keras Model
+def polynomial_decay_lr(initial,max_epochs,poly_pow):
+    '''
+    Wrapper that drops the learning rate to zero over max_epochs epochs, with
+    shape given by poly_pow (set poly_pow = 1 to get linear decay).
+    '''
+    def schedule(epoch):
+        decay = power((1 - (epoch/max_epochs)),poly_pow)
+        lr = initial*decay
+        return lr
+
+    return LearningRateScheduler(schedule)
+
+
+def constant_lr(initial):
+    '''
+    Wrapper that just clamps the learning rate at the initial value forever.
+    '''
+    def schedule(epoch):
+        return initial
+
+    return LearningRateScheduler(schedule)
+
+
 
 class EARSHOT(Model):
     '''
@@ -71,6 +89,20 @@ class EARSHOT(Model):
             self.loss = "mean_squared_error"
             self.activation = tf.nn.tanh
 
+        # set learning rate schedule
+        if self.model_parameters.learning_schedule == 'noam':
+            self.lr_sched = noam_decay_lr(**self.model_parameters['noam'])
+            learning_rate = self.model_parameters['noam']['initial']
+        elif self.model_parameters.learning_schedule == 'constant':
+            self.lr_sched = constant_lr(self.model_parameters['constant']['rate'])
+            learning_rate = self.model_parameters['constant']['rate']
+
+        # optimizer
+        if self.model_parameters.optimizer == 'ADAM':
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate,**tf.keras.optimizers['ADAM'])
+        elif self.model_parameters.optimizer == 'SGD':
+            self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate,**tf.keras.optimizers['SGD'])
+
         self.dense_output = Dense(output_len, activation=self.activation)
 
 
@@ -81,6 +113,7 @@ class EARSHOT(Model):
         x = self.mask(inputs)
         x = self.hidden(x)
         return self.dense_output(x)
+
 
     def model(self, input_shape):
         '''

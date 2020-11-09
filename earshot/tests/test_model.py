@@ -24,28 +24,29 @@ class TestModel(unittest.TestCase):
         # now compile
         self.es.compile(loss=self.es.loss,optimizer="adam")
 
+
+    def test_learning_schedule(self):
+        pass
+
     def test_model_compile(self):
         # model should not be none after all that
         self.assertIsNotNone(self.es.compile)
+
 
     def test_model_size(self):
         # basic model should have a mask, one hidden layer, and a dense output
         self.assertEqual(len(self.es.layers),3)
 
 
-    # this test should be removed.  Unfortunately, if we use the delayed build
-    #   paradigm in keras, we can't introspect into the model anymore.
-    '''
     def test_model_mask(self):
-        # compile the model
-        self.es.compile(loss=self.es.loss,optimizer="adam")
+        # return a shape-specified version of the model for introspection
         # mask is defined in the masking layer, so it should have no input
         #   mask but should create the output mask
-        self.assertIsNone(self.es.layers[1].input_mask)
-        self.assertIsNotNone(self.es.layers[1].output_mask)
+        x = self.es.model((54,256))
+        self.assertIsNone(x.layers[1].input_mask)
+        self.assertIsNotNone(x.layers[1].output_mask)
         # mask should be propagated through the input and output of all
         #   subsequent layers
-        for i in range(2,len(self.es.layers)):
-            self.assertIsNotNone(self.es.layers[i].input_mask)
-            self.assertIsNotNone(self.es.layers[i].output_mask)
-    '''
+        for i in range(2,len(x.layers)):
+            self.assertIsNotNone(x.layers[i].input_mask)
+            self.assertIsNotNone(x.layers[i].output_mask)
