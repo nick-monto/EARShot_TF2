@@ -2,3 +2,4 @@ include tests/test-pron.txt
 include tests/test-input/*.PICKLE
 include tests/wavs/*.WAV
 include tests/*.py
+include example-scripts/*.py
