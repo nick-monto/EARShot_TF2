@@ -7,15 +7,16 @@ from earshot.model import EARSHOT
 from earshot.parameters import ModelParameters
 
 # log desired audio files, provide path to folder containing them
-train_manifest = Manifest('/home/nicholas/Documents/EARSHOT_NEW_WAVS')
+train_manifest = Manifest('insert path to directory containing audio files')
 
 # generate target SRVs
 train_manifest.generate_srvs(target='Word', target_len=300, target_on=10)
 
-# create batch generator of 500 items from the input manifest excluding the talker Junior
+# create batch generator of 100 items from the input manifest excluding the talker Junior
 # remove the .sample() to create a batch generator of the whole set
-batch_gen = DataGenerator(df=train_manifest.manifest[train_manifest.manifest.Talker != 'JUNIOR'].sample(500),
-                          batch_size=16, pad_value=-9999, return_seq=True)
+# scipy spectrogram calcs are a lot slower, but may be due to being written as a class
+batch_gen = DataGenerator(df=train_manifest.manifest[train_manifest.manifest.Talker != 'JUNIOR'].sample(100),
+                          batch_size=16, pad_value=-9999, return_seq=True, spec_calc='scipy')
 
 p = ModelParameters()
 

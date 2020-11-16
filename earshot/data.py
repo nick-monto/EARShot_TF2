@@ -98,12 +98,16 @@ class Manifest(object):
 class DataGenerator(Sequence):
     'Generates data for Keras'
 
-    def __init__(self, df, batch_size=32, pad_value=-9999, return_seq=True):
+    def __init__(self, df, batch_size=32, pad_value=-9999, return_seq=True, spec_calc='scipy'):
         '''
         df = manifest dataframe
         batch_size = desired batching size
         pad_value = desired value to pad data with, pads to max of each batch
+        return_seq = determines generated label structure, related to model architecture
         '''
+        assert spec_calc in [
+            'scipy', 'librosa'], "Please use 'scipy' or 'librosa' to calculate spectrograms."
+        self._spec_calc = spec_calc
         self.df = df
         self.batch_size = batch_size
         self.pad_value = pad_value
@@ -135,7 +139,10 @@ class DataGenerator(Sequence):
         'Generates data containing batch_size samples'
         # Initialization
         # calculate spectrograms for each item in batch
-        spec = [ spectro_calc(path[0]) for path in list_pairs_temp ]
+        if self._spec_calc == 'librosa':
+            spec = [ spectro_calc(path[0]) for path in list_pairs_temp ]
+        else:
+            spec = [ AudioTools(path[0]).sgram(0.035,0.005,8000) for path in list_pairs_temp ]
         # get max len of batch
         M = max(len(a) for a in spec)
         # pad all specs in batch to max length
@@ -177,6 +184,7 @@ class AudioTools(object):
             sig, frame_length=32, hop_length=16)[0]
 
     def _enframe(self, signal, skip_len, window_len):
+        # generate time windows for subsequent stft calculations
         # w = 0.54*np.ones(L)
         # for n in range(0,L):
         #   w[n] = w[n] - 0.46*math.cos(2*math.pi*n/(L-1))
@@ -223,7 +231,8 @@ class AudioTools(object):
             spectra, int(max_freq*self.n_fft/self.fs)))
         self.max_time = len(self.frames)*skip_len/self.fs
         self.max_freq = max_freq
-        return self.spl_spec
+        # returns max scaled spl spectrogram
+        return self.spl_spec / self.spl_spec.max()
 
     def plot_spec(self):
         try:
