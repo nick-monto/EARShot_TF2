@@ -14,7 +14,7 @@ train_manifest.generate_srvs(target='Word', target_len=300, target_on=10)
 
 # create batch generator of 100 items from the input manifest excluding the talker Junior
 # remove the .sample() to create a batch generator of the whole set
-# scipy spectrogram calcs are a lot slower, but may be due to being written as a class
+# scipy spectrogram calcs are a lot slower, likely due to calculating more time steps over a larger frequency range
 batch_gen = DataGenerator(df=train_manifest.manifest[train_manifest.manifest.Talker != 'JUNIOR'].sample(100),
                           batch_size=16, pad_value=-9999, return_seq=True, spec_calc='scipy')
 
@@ -33,8 +33,8 @@ model.fit(
 )
 
 # Prediction example
-test = spectro_calc(train_manifest.manifest['Path'].tolist()[0])
-test_prediction = model.predict(test.reshape(1, -1, 256))
+test = AudioTools(train_manifest.manifest['Path'].tolist()[0]).sgram(0.035, 0.005, 8000)
+test_prediction = model.predict(test.reshape(1, -1, 371))
 
 results = [1 - spatial.distance.cosine(train_manifest.manifest['Target'].tolist()[
                                        0], i) for i in test_prediction[0]]
