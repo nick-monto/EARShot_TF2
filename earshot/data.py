@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 
 from earshot.audio import *
 from numpy import ones
-from scipy import sparse
-from scipy import fftpack
+from scipy import sparse, fftpack, spatial
 from tensorflow.keras.utils import Sequence
 from tqdm import tqdm
 
@@ -90,9 +89,25 @@ class Manifest(object):
     def calc_spec(self):
         # place holder for input
         self.manifest['Input'] = None
-        for i in tqdm(range(len(self.manifest))):
-            self.manifest.loc[i, 'Input'] = spectro_calc(
-                self.manifest['Path'][i])
+        for index,row in tqdm(self.manifest.iterrows()):
+            self.manifest.loc[index, 'Input'] = spectro_calc(
+                self.manifest['Path'][index])
+
+    def gen_predict(self, Talker, num_samp=100, pad_value=-9999, window_len=0.035, skip_len=0.005, max_freq=8000):
+        # pull a number of random items from a specific talker for model prediction
+        predict_df = self.manifest[self.manifest.Talker == Talker].sample(num_samp)
+        
+        predict_df['Input'] = None
+        for index, row in tqdm(predict_df.iterrows()):
+            predict_df.loc[index, 'Input'] = AudioTools(predict_df['Path'][index]).sgram(window_len,skip_len,max_freq)
+        M = max(len(a) for a in predict_df['Input'].tolist())
+        
+        predict_df['Padded Input'] = None
+        for index, row in predict_df.iterrows():
+            s = predict_df.loc[index, 'Input']
+            predict_df.loc[index, 'Padded Input'] = pad(s, (M, s.shape[1]), pad_val=pad_value)
+        return predict_df
+
 
 
 class DataGenerator(Sequence):
@@ -166,7 +181,6 @@ class DataGenerator(Sequence):
 
         return X, y
 
-
 class AudioTools(object):
     '''
     A suite of tools to generate SPL spectrograms for a specified audio file.
@@ -177,7 +191,7 @@ class AudioTools(object):
     '''
     def __init__(self, audiopath):
         '''
-        audiopath = path to desired audio
+        audiopath: path to desired audio
         '''
         sig, self.fs = librosa.core.load(audiopath)
         self.signal = librosa.effects.trim(
@@ -245,3 +259,52 @@ class AudioTools(object):
             plt.show()
         except:
             print("Please run the sgram method before plotting.")
+
+class Prediction(object):
+    '''
+    Class for generating cosine simularity dfs.
+    '''
+    def __init__(self, trained_model, prediction_df, full_manifest):
+        '''
+        trained_model: trained earshot model
+        prediction_set: set of data for prediction, easily generated using gen_predict method of the Manifest class
+        full_manifest: full manifest df from Manifest class (.manifest method) that contains full set of words and targets
+        '''
+        self.prediction_df = prediction_df
+
+
+        self.predictions = trained_model.predict(np.array(self.prediction_df['Padded Input'].tolist()),
+                                                 batch_size = 32,
+                                                 verbose=1)
+
+        # creat df of unique words with associated labels
+        self.unique_label_df = full_manifest[~full_manifest['Word'].duplicated()][['Word','Target']].reset_index()
+
+        # get talker, word, and input of each input
+        self.true_items = [ (row['Talker'], row['Word'], row['Input']) for index, row in self.prediction_df.iterrows() ]
+        
+        self.cosine_sim_dict = self._calc_cosine()
+
+    def _calc_cosine(self):
+            
+        # calculate cosine similarity of each prediction
+        # at each time step
+        # to every word in the training vocab
+        # constrained to the true length of the prediction input
+
+        # compute consine simularity at each timestep against each word in vocab
+        # output rows = timestep, columns = word, cell value = consine simularity
+        # this method currently overrides duplicate targets in dictionary with most recent in set
+        simularity_dict = {}
+        for i in tqdm(range(len(self.true_items))):
+            simularity_df = pd.DataFrame()
+            for index, row in self.unique_label_df.iterrows():
+                cosine = []
+                for t in range(len(self.true_items[i][2])):
+                    # compute cosine simularity
+                    cosine.append(1 - spatial.distance.cosine(row['Target'], self.predictions[i][t]))
+                # make dataframe containing simularity computed at each time step to every word
+                simularity_df[row['Word']] = cosine 
+            # add df to dict with key of the true word
+            simularity_dict["{0}".format(self.true_items[i][1])] = simularity_df
+        return simularity_dict
