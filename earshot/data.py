@@ -13,6 +13,12 @@ from tqdm import tqdm
 
 # TODO include a pass for precomputed input to the Batch Generator / Manifest
 
+def closest_power(x):
+    # credit user koffein
+    # https://stackoverflow.com/questions/28228774/find-the-integer-that-is-closest-to-the-power-of-two/28229369
+    possible_results = math.floor(math.log(x, 2)), math.ceil(math.log(x, 2))
+    return min(possible_results, key= lambda z: abs(x-2**z))
+
 def pad(data_2d, ref_shape, pad_val=-9999):
     '''
     Pads a 2D matrix "data" with the pad_value to make it have shape ref_shape.
@@ -229,14 +235,18 @@ class AudioTools(object):
                          for x in magnitude_spectra]
         return level_spectra
 
-    def sgram(self, window_len, skip_len, max_freq):
+    def sgram(self, window_len, skip_len, max_freq, n_fft = False):
         '''
         window_len: length of window in seconds
         skip_len: length to skip in seconds
         max_freq: maximum desired frequency
+        n_fft: False to automatically determine number of frequency bins based on window length, can override with number brought to the nearest power of 2
         '''
-        self.n_fft = pow(2, int(math.log(int(self.fs*window_len),
-                                         2) + 0.5))  # calc NFFT suitable for window_len
+        if n_fft:
+            n_fft = int(closest_power(n_fft))
+            self.n_fft = pow(2, n_fft)
+        else:
+            self.n_fft = pow(2, int(math.log(int(self.fs*window_len), 2) + 0.5))  # calc NFFT suitable for window_len
         window_len = int(window_len*self.fs)  # convert to length in samples
         skip_len = int(skip_len*self.fs)  # convert to length in samples
         self.frames = self._enframe(self.signal, skip_len, window_len)
