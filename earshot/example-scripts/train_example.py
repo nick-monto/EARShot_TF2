@@ -7,7 +7,7 @@ from earshot.model import EARSHOT
 from earshot.parameters import ModelParameters
 
 # log desired audio files, provide path to folder containing them
-train_manifest = Manifest('insert path to directory containing audio files')
+train_manifest = Manifest('path to input directory')
 
 # generate target SRVs
 train_manifest.generate_srvs(target='Word', target_len=300, target_on=10)
@@ -28,14 +28,11 @@ model.compile(loss=model.loss, optimizer="adam", metrics=[
 model.fit(
     batch_gen,
     epochs=5,
-    shuffle=True,
-    use_multiprocessing=False
+    shuffle=True
 )
 
 # Prediction example
-test = AudioTools(train_manifest.manifest['Path'].tolist()[0]).sgram(0.035, 0.005, 8000)
-test_prediction = model.predict(test.reshape(1, -1, 371))
+predict_df = train_manifest.gen_predict('JUNIOR')
 
-results = [1 - spatial.distance.cosine(train_manifest.manifest['Target'].tolist()[
-                                       0], i) for i in test_prediction[0]]
-np.max(results)
+cosine_sims = Prediction(model, predict_df, train_manifest.manifest)
+cosine_sims.cosine_sim_dict

@@ -1,4 +1,4 @@
-from numpy import power,min,max,nan,floor
+from numpy import power,min,max,floor
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential, optimizers
 from tensorflow.keras.layers import Dense, GRU, Input, Masking, LSTM
