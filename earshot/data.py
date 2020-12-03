@@ -302,9 +302,10 @@ class Prediction(object):
         # to every word in the training vocab
         # constrained to the true length of the prediction input
 
-        # compute consine simularity at each timestep against each word in vocab
-        # output rows = timestep, columns = word, cell value = consine simularity
+        # compute cosine simularity at each timestep against each word in vocab
+        # output rows = timestep, columns = word, cell value = cosine simularity
         # this method currently overrides duplicate targets in dictionary with most recent in set
+        # TODO tag duplicates before assigning key in dict; cat cat1 cat2 etc
         simularity_dict = {}
         for i in tqdm(range(len(self.true_items))):
             simularity_df = pd.DataFrame()
