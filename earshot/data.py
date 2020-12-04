@@ -282,7 +282,6 @@ class Prediction(object):
         '''
         self.prediction_df = prediction_df
 
-
         self.predictions = trained_model.predict(np.array(self.prediction_df['Padded Input'].tolist()),
                                                  batch_size = 32,
                                                  verbose=1)
@@ -290,9 +289,6 @@ class Prediction(object):
         # creat df of unique words with associated labels
         self.unique_label_df = full_manifest[~full_manifest['Word'].duplicated()][['Word','Target']].reset_index()
 
-        # get talker, word, and input of each input
-        self.true_items = [ (row['Talker'], row['Word'], row['Input']) for index, row in self.prediction_df.iterrows() ]
-        
         self.cosine_sim_dict = self._calc_cosine()
 
     def _calc_cosine(self):
@@ -307,15 +303,13 @@ class Prediction(object):
         # this method currently overrides duplicate targets in dictionary with most recent in set
         # TODO tag duplicates before assigning key in dict; cat cat1 cat2 etc
         simularity_dict = {}
-        for i in tqdm(range(len(self.true_items))):
-            simularity_df = pd.DataFrame()
-            for index, row in self.unique_label_df.iterrows():
-                cosine = []
-                for t in range(len(self.true_items[i][2])):
-                    # compute cosine simularity
-                    cosine.append(1 - spatial.distance.cosine(row['Target'], self.predictions[i][t]))
-                # make dataframe containing simularity computed at each time step to every word
-                simularity_df[row['Word']] = cosine 
-            # add df to dict with key of the true word
-            simularity_dict["{0}".format(self.true_items[i][1])] = simularity_df
+        Y = np.array(self.unique_label_df['Target'].to_list()).T
+        for i in tqdm(range(len(self.predictions))):
+            x = self.predictions[i][:self.prediction_df['Input'].iloc()[i].shape[0]]
+            cosine_sim = []
+            for step in x:
+                cosine_sim.append(np.dot(Y.T,step)/(np.sqrt(np.dot(step,step))*np.sqrt((Y*Y).sum(axis=0))))
+            simularity_df = pd.DataFrame(np.array(cosine_sim).reshape(x.shape[0],Y.shape[1]))
+            simularity_df.columns = np.array(self.unique_label_df['Word'].to_list()).T
+            simularity_dict["{0}".format(self.prediction_df['Word'].iloc()[i])] = simularity_df
         return simularity_dict
