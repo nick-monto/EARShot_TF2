@@ -5,11 +5,12 @@ import pandas as pd
 import numpy.matlib as npm
 import matplotlib.pyplot as plt
 
+from earshot.phonology import *
 from earshot.audio import *
 from numpy import ones
 from scipy import sparse, fftpack, spatial
 from tensorflow.keras.utils import Sequence
-from tqdm import tqdm
+from tqdm import tqdm,trange
 
 # TODO include a pass for precomputed input to the Batch Generator / Manifest
 
@@ -73,6 +74,48 @@ class Manifest(object):
         print("Number of unique word utterances by each talker.")
         print(self.manifest.groupby('Talker').count()['Word'])
 
+    def generate_category_dict(self, pronounce_text='./Pronunciation_Data_1K.New.txt'):
+        '''
+        For each word, determines its cohorts, rhymes, DAS neighbors, and unrelated words from the
+        pronunciation file.
+        '''
+        pronounce_df = pd.read_csv(pronounce_text, sep='\t', names=['Word','Pronounce'])
+        self.category_dict = {}
+        for idx, row in tqdm(pronounce_df.iterrows(), total=pronounce_df.shape[0]):
+            self.category_dict[row['Word']] = {'Target': [], 'Cohort': [], 'Rhyme': [],
+                                               'DAS_Neighborhood': [], 'Unrelated': []}
+
+            for index, compare_row in pronounce_df.iterrows():
+                compare_word_indx = compare_row['Word']
+
+                # assume word is unrelated by default
+                if row['Word'] == compare_row['Word']:
+                    # word is the target; move on
+                    self.category_dict[row['Word']]['Target'].append(compare_word_indx)
+                    continue
+
+                # words cannot be both cohorts and rhymes
+                if are_cohorts(row['Pronounce'], compare_row['Pronounce']):
+                    # words are in the same cohort
+                    self.category_dict[row['Word']]['Cohort'].append(compare_word_indx)
+                    # they may also be neighbors
+                    if are_neighbors(row['Pronounce'],compare_row['Pronounce']):
+                        self.category_dict[row['Word']]['DAS_Neighborhood'].append(compare_word_indx)
+                    continue
+                elif are_rhymes(row['Pronounce'], compare_row['Pronounce']):
+                    # words are rhymes and (by this def'n) automatically neighbors
+                    self.category_dict[row['Word']]['Rhyme'].append(compare_word_indx)
+                    self.category_dict[row['Word']]['DAS_Neighborhood'].append(compare_word_indx)
+                    continue
+
+                # words may be neighbors but not cohorts or rhymes
+                if are_neighbors(row['Pronounce'],compare_row['Pronounce']):
+                    self.category_dict[row['Word']]['DAS_Neighborhood'].append(compare_word_indx)
+                    continue
+
+                # if we made it here, they must be unrelated
+                self.category_dict[row['Word']]['Unrelated'].append(compare_word_indx)
+
     def generate_srvs(self, target='Word', target_len=300, target_on=10):
         '''
         target = manifest column containing desired targets
@@ -99,10 +142,14 @@ class Manifest(object):
             self.manifest.loc[index, 'Input'] = spectro_calc(
                 self.manifest['Path'][index])
 
-    def gen_predict(self, Talker, num_samp=100, pad_value=-9999, window_len=0.035, skip_len=0.005, max_freq=8000):
+    def gen_predict(self, Talker, subset=False, num_samp=100, pad_value=-9999, window_len=0.010, skip_len=0.010, max_freq=8000):
         # pull a number of random items from a specific talker for model prediction
-        predict_df = self.manifest[self.manifest.Talker == Talker].sample(num_samp)
-        
+        predict_df = self.manifest[self.manifest['Talker'].isin(Talker)]
+        try:
+            predict_df = predict_df[predict_df['Word'].isin(subset['Word'].tolist())]
+        except:
+            print("No subset given, using full manifest.")
+        predict_df = predict_df.sample(num_samp)
         predict_df['Input'] = None
         for index, row in tqdm(predict_df.iterrows()):
             predict_df.loc[index, 'Input'] = AudioTools(predict_df['Path'][index]).sgram(window_len,skip_len,max_freq)
@@ -163,7 +210,7 @@ class DataGenerator(Sequence):
         if self._spec_calc == 'librosa':
             spec = [ spectro_calc(path[0]) for path in list_pairs_temp ]
         else:
-            spec = [ AudioTools(path[0]).sgram(0.035,0.005,8000) for path in list_pairs_temp ]
+            spec = [ AudioTools(path[0]).sgram(0.010,0.010,8000) for path in list_pairs_temp ]
         # get max len of batch
         M = max(len(a) for a in spec)
         # pad all specs in batch to max length
@@ -301,15 +348,29 @@ class Prediction(object):
         # compute cosine simularity at each timestep against each word in vocab
         # output rows = timestep, columns = word, cell value = cosine simularity
         # this method currently overrides duplicate targets in dictionary with most recent in set
-        # TODO tag duplicates before assigning key in dict; cat cat1 cat2 etc
+        # TODO tag duplicates before assigning key in dict; cat cat1 cat2 etc 
         simularity_dict = {}
         Y = np.array(self.unique_label_df['Target'].to_list()).T
-        for i in tqdm(range(len(self.predictions))):
+        for i in trange(len(self.predictions)):
             x = self.predictions[i][:self.prediction_df['Input'].iloc()[i].shape[0]]
             cosine_sim = []
             for step in x:
                 cosine_sim.append(np.dot(Y.T,step)/(np.sqrt(np.dot(step,step))*np.sqrt((Y*Y).sum(axis=0))))
             simularity_df = pd.DataFrame(np.array(cosine_sim).reshape(x.shape[0],Y.shape[1]))
             simularity_df.columns = np.array(self.unique_label_df['Word'].to_list()).T
-            simularity_dict["{0}".format(self.prediction_df['Word'].iloc()[i])] = simularity_df
+            if self.prediction_df['Talker'].unique().shape[0] > 1:
+                simularity_dict["{0}_{1}".format(self.prediction_df['Word'].iloc()[i], self.prediction_df['Talker'].iloc()[i])] = simularity_df
+            else:
+                simularity_dict["{0}".format(self.prediction_df['Word'].iloc()[i])] = simularity_df
         return simularity_dict
+
+    def plot_category_cosine(self, target_word, category_dict):
+        '''
+        target_word: select word to plot from .cosine_sim_dict.keys()
+        category_dict: pass a category dictionary generated from Manifest.generate_category_dict()
+        '''
+        cosine_category_df = pd.DataFrame()
+        for i in list(category_dict[target_word].keys()):
+            cosine_category_df[i] = self.cosine_sim_dict[target_word][category_dict[target_word][i]].mean(axis=1)
+        lines = cosine_category_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', title=target_word)
+        return plt.show()
