@@ -321,6 +321,7 @@ class Prediction(object):
     '''
     Class for generating cosine simularity dfs.
     '''
+    # TODO look to include a pass for model checkpoints
     def __init__(self, trained_model, prediction_df, full_manifest):
         '''
         trained_model: trained earshot model

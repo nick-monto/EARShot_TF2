@@ -1,6 +1,6 @@
-import numpy as np
-from scipy.spatial.distance import cosine
 import tensorflow as tf
+import pandas as pd
+
 from earshot.audio import *
 from earshot.data import *
 from earshot.model import EARSHOT
@@ -26,14 +26,22 @@ batch_gen = DataGenerator(df=training_1k[training_1k.Talker != 'JUNIOR'].sample(
 
 p = ModelParameters()
 
-# instantiate model
+# instantiate model callbacks for early stopping and model checkpointing
+es = tf.keras.callbacks.EarlyStopping(monitor='loss', min_delta=0.005, patience=100) # stop early if no significant change in loss
+filepath = './earshot/checkpoints/cp-{epoch:05d}.ckpt'
+# save a model checkpoint after every 500 epochs
+# TODO might change to every k number of samples
+checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor='loss', 
+                                                verbose=1, save_freq='epoch', period=500)
+
 # sub-classed model requires length of target vector and model parameters
 model = EARSHOT(training_1k['Target'][0].shape[0], p)
 model.compile(loss=model.loss, optimizer="adam", metrics=[
               tf.keras.metrics.CategoricalAccuracy()])
 model.fit(
     batch_gen,
-    epochs=1,
+    epochs=10000,
+    callbacks=[checkpoint, es],
     shuffle=True
 )
 
