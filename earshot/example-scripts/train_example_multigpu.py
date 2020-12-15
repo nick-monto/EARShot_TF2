@@ -6,6 +6,9 @@ from earshot.data import *
 from earshot.model import EARSHOT
 from earshot.parameters import ModelParameters
 
+# check number of available physical gpus
+print("Number of GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+
 # log desired audio files, provide path to folder containing them
 train_manifest = Manifest('path to input directory')
 
@@ -34,10 +37,17 @@ filepath = './earshot/checkpoints/cp-{epoch:05d}.ckpt'
 checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor='loss', 
                                                 verbose=1, save_freq='epoch', period=500)
 
+# Instantiate mirrored strategy for training locally on multiple gpus
+strategy = tf.distribute.MirroredStrategy()
+print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+# generate model variable within the strategy scope
 # sub-classed model requires length of target vector and model parameters
-model = EARSHOT(training_1k['Target'][0].shape[0], p)
-model.compile(loss=model.loss, optimizer="adam", metrics=[
-              tf.keras.metrics.CategoricalAccuracy()])
+with strategy.scope():
+    model = EARSHOT(training_1k['Target'][0].shape[0], p)
+    model.compile(loss=model.loss, optimizer="adam", metrics=[
+                  tf.keras.metrics.CategoricalAccuracy()])
+
 model.fit(
     batch_gen,
     epochs=10000,
@@ -45,11 +55,11 @@ model.fit(
     shuffle=True
 )
 
-# Prediction example
-# have to pass talker within a list ['JUNIOR'], but can assign multiple via ['ALLISON', 'JUNIOR', etc.]
-predict_df = train_manifest.gen_predict(['JUNIOR'], subset=subset)
+# # Prediction example
+# # have to pass talker within a list ['JUNIOR'], but can assign multiple via ['ALLISON', 'JUNIOR', etc.]
+# predict_df = train_manifest.gen_predict(['JUNIOR'], subset=subset)
 
-cosine_sims = Prediction(model, predict_df, training_1k)
+# cosine_sims = Prediction(model, predict_df, training_1k)
 
-cosine_sims.cosine_sim_dict.keys()
-cosine_sims.plot_category_cosine('LARD', train_manifest.category_dict)
+# cosine_sims.cosine_sim_dict.keys()
+# cosine_sims.plot_category_cosine('LARD', train_manifest.category_dict)
