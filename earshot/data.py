@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import numpy.matlib as npm
 import matplotlib.pyplot as plt
+from tensorflow.python.keras.engine import training
 
 from earshot.phonology import *
 from earshot.audio import *
@@ -135,12 +136,29 @@ class Manifest(object):
             len(target_pairs['Target'])))
         self.manifest = self.manifest.merge(target_pairs)
 
-    def calc_spec(self):
+    def calc_spec(self, subset=False):
+        training_df = self.manifest
+        try:
+            training_df = training_df[training_df['Word'].isin(subset['Word'].tolist())]
+        except:
+            print("No subset given, using full manifest.")
         # place holder for input
-        self.manifest['Input'] = None
-        for index,row in tqdm(self.manifest.iterrows()):
-            self.manifest.loc[index, 'Input'] = spectro_calc(
-                self.manifest['Path'][index])
+        training_df['Input'] = None
+        for index,row in tqdm(training_df.iterrows()):
+            training_df.loc[index, 'Input'] = AudioTools(training_df['Path'][index]).sgram(0.010,0.010,8000)
+  
+        training_df['Padded Input'] = None
+        # get max len of batch
+        M = max(len(a) for a in training_df['Input'].tolist())
+        for index,row in tqdm(training_df.iterrows()):
+            s = training_df.loc[index, 'Input']
+            training_df.loc[index, 'Padded Input'] = pad(s, (M, s.shape[1]))
+        # pad output
+        training_df['Padded Target'] = None
+        for index,row in tqdm(training_df.iterrows()):
+            padded_target = npm.repmat(training_df.loc[index, 'Target'], M, 1)
+            training_df.loc[index, 'Padded Target'] = padded_target
+        return training_df
 
     def gen_predict(self, Talker, subset=False, num_samp=100, pad_value=-9999, window_len=0.010, skip_len=0.010, max_freq=8000):
         # pull a number of random items from a specific talker for model prediction
