@@ -4,12 +4,11 @@ import os
 import pandas as pd
 import numpy.matlib as npm
 import matplotlib.pyplot as plt
-from tensorflow.python.keras.engine import training
 
 from earshot.phonology import *
 from earshot.audio import *
 from numpy import ones
-from scipy import sparse, fftpack, spatial
+from scipy import sparse, fftpack
 from tensorflow.keras.utils import Sequence
 from tqdm import tqdm,trange
 
