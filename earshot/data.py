@@ -95,21 +95,21 @@ class Manifest(object):
                     continue
 
                 # words cannot be both cohorts and rhymes
-                if are_cohorts(row['Pronounce'], compare_row['Pronounce']):
+                if are_cohorts(row['Pronounce'].split('.'), compare_row['Pronounce'].split('.')):
                     # words are in the same cohort
                     self.category_dict[row['Word']]['Cohort'].append(compare_word_indx)
                     # they may also be neighbors
-                    if are_neighbors(row['Pronounce'],compare_row['Pronounce']):
+                    if are_neighbors(row['Pronounce'].split('.'),compare_row['Pronounce'].split('.')):
                         self.category_dict[row['Word']]['DAS_Neighborhood'].append(compare_word_indx)
                     continue
-                elif are_rhymes(row['Pronounce'], compare_row['Pronounce']):
+                elif are_rhymes(row['Pronounce'].split('.'), compare_row['Pronounce'].split('.')):
                     # words are rhymes and (by this def'n) automatically neighbors
                     self.category_dict[row['Word']]['Rhyme'].append(compare_word_indx)
                     self.category_dict[row['Word']]['DAS_Neighborhood'].append(compare_word_indx)
                     continue
 
                 # words may be neighbors but not cohorts or rhymes
-                if are_neighbors(row['Pronounce'],compare_row['Pronounce']):
+                if are_neighbors(row['Pronounce'].split('.'),compare_row['Pronounce'].split('.')):
                     self.category_dict[row['Word']]['DAS_Neighborhood'].append(compare_word_indx)
                     continue
 
@@ -339,17 +339,20 @@ class Prediction(object):
     Class for generating cosine simularity dfs.
     '''
     # TODO look to include a pass for model checkpoints
-    def __init__(self, trained_model, prediction_df, full_manifest):
+    def __init__(self, fresh_model, checkpoint_path, prediction_df, full_manifest):
         '''
-        trained_model: trained earshot model
+        fresh_model: untrained earshot model to load weights
+        checkpoint_path: path to model checkpoint to evaluate
         prediction_set: set of data for prediction, easily generated using gen_predict method of the Manifest class
         full_manifest: full manifest df from Manifest class (.manifest method) that contains full set of words and targets
         '''
         self.prediction_df = prediction_df
 
-        self.predictions = trained_model.predict(np.array(self.prediction_df['Padded Input'].tolist()),
-                                                 batch_size = 32,
-                                                 verbose=1)
+        fresh_model.load_weights(checkpoint_path)
+
+        self.predictions = fresh_model.predict(np.array(self.prediction_df['Padded Input'].tolist()),
+                                               batch_size = 32,
+                                               verbose=1)
 
         # creat df of unique words with associated labels
         self.unique_label_df = full_manifest[~full_manifest['Word'].duplicated()][['Word','Target']].reset_index()
@@ -370,7 +373,7 @@ class Prediction(object):
         simularity_dict = {}
         Y = np.array(self.unique_label_df['Target'].to_list()).T
         for i in trange(len(self.predictions)):
-            x = self.predictions[i][:self.prediction_df['Input'].iloc()[i].shape[0]]
+            x = self.predictions[i][:self.prediction_df['Padded Input'].iloc()[i].shape[0]]
             cosine_sim = []
             for step in x:
                 cosine_sim.append(np.dot(Y.T,step)/(np.sqrt(np.dot(step,step))*np.sqrt((Y*Y).sum(axis=0))))
@@ -390,5 +393,32 @@ class Prediction(object):
         cosine_category_df = pd.DataFrame()
         for i in list(category_dict[target_word].keys()):
             cosine_category_df[i] = self.cosine_sim_dict[target_word][category_dict[target_word][i]].mean(axis=1)
-        lines = cosine_category_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', title=target_word)
+        lines = cosine_category_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', ylim=(0,1), title=target_word)
+        return plt.show()
+    
+    def plot_cosine_grand_mean(self, category_dict):
+        target_df = pd.DataFrame()
+        cohort_df = pd.DataFrame()
+        rhyme_df = pd.DataFrame()
+        neighborhood_df = pd.DataFrame()
+        unrelated_df = pd.DataFrame()
+
+        for word in tqdm(self.cosine_sim_dict.keys()):
+            category_df = pd.DataFrame()
+            for i in list(category_dict[word].keys()):
+                category_df[i] = self.cosine_sim_dict[word][category_dict[word][i]].mean(axis=1)    
+            target_df[word] = category_df['Target']
+            cohort_df[word] = category_df['Cohort']
+            rhyme_df[word] = category_df['Rhyme']
+            neighborhood_df[word] = category_df['DAS_Neighborhood']
+            unrelated_df[word] = category_df['Unrelated']
+
+        mean_cosine_df = pd.DataFrame()
+        mean_cosine_df['Target'] = target_df.mean(axis=1)
+        mean_cosine_df['Cohort'] = cohort_df.mean(axis=1)
+        mean_cosine_df['Rhyme'] = rhyme_df.mean(axis=1)
+        mean_cosine_df['DAS Neighborhood'] = neighborhood_df.mean(axis=1)
+        mean_cosine_df['Unrelated'] = unrelated_df.mean(axis=1)
+        self.mean_cosine_df = mean_cosine_df
+        mean_cosine_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', ylim=(0,1), title="Cosine Simularity Grand Mean")
         return plt.show()
