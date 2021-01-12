@@ -135,4 +135,6 @@ Results.X/
 .vscode
 
 # module-specific ignores
-earshot/tests/test-pat
+earshot/tests/test-
+earshot/ipynb_checkpoints
+earshot/checkpoints
