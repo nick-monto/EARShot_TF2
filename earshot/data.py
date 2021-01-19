@@ -364,7 +364,6 @@ class Prediction(object):
         # calculate cosine similarity of each prediction
         # at each time step
         # to every word in the training vocab
-        # constrained to the true length of the prediction input
 
         # compute cosine simularity at each timestep against each word in vocab
         # output rows = timestep, columns = word, cell value = cosine simularity
@@ -422,3 +421,55 @@ class Prediction(object):
         self.mean_cosine_df = mean_cosine_df
         mean_cosine_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', ylim=(0,1), title="Cosine Simularity Grand Mean")
         return plt.show()
+
+    def gen_RT(self, word, prediction_df, abs_threshold=0.4, rel_threshold=0.05, time_threshold=10):
+        '''
+        word = Target word to generate RTs for
+        prediction_df = set of words for prediction, derived from a dataframe akin to the training dataframe
+        abs_threshold = cosine threshold for target to hit to be considered accurate
+        rel_threshold = relative distance of target to next highest cosine that must be reached to be considered accurate
+        time_threshold = duration, in time steps, that relative threshold must be maintained between target and next highest cosine to be considered accurate
+        '''
+        # TODO Add next highest word when check fails
+        # Accuracy/RT measures
+
+        absolute_Criterion = abs_threshold
+        relative_Criterion = rel_threshold
+        time_Dependency_Criterion = (time_threshold, rel_threshold)
+
+        # limit to true word length
+        target_df = self.cosine_sim_dict[word][:prediction_df[prediction_df['Word']==word]['Input'].values[0].shape[0]][word]
+        other_df = pd.DataFrame(self.cosine_sim_dict[word][:prediction_df[prediction_df['Word']==word]['Input'].values[0].shape[0]].drop(word, axis=1).max(axis=1), columns=['Max Cosine'])
+        other_df['Max Word'] = self.cosine_sim_dict[word][:prediction_df[prediction_df['Word']==word]['Input'].values[0].shape[0]].drop(word,axis=1).idxmax(axis=1)
+        rt_Dict = {
+            ('Absolute'): np.nan,
+            ('Relative'): np.nan,
+            ('Time_Dependent'): np.nan
+            }
+
+        #Absolute threshold RT
+        if not (other_df['Max Cosine'] > absolute_Criterion).any():
+            absolute_Check_Array = target_df > absolute_Criterion
+            for step in range(len(target_df)):
+                if absolute_Check_Array[step]:
+                    rt_Dict['Absolute'] = (step, other_df.iloc()[step]['Max Word'])
+                #break
+
+        #Relative threshold RT
+        relative_Check_Array = target_df > (other_df['Max Cosine'] + relative_Criterion)
+        for step in range(len(target_df)):
+            if relative_Check_Array[step]:
+                rt_Dict['Relative'] = (step, other_df.iloc()[step]['Max Word'])
+                break
+
+        #Time dependent RT
+        time_Dependency_Check_Array_with_Criterion = target_df > other_df['Max Cosine'] + time_Dependency_Criterion[1]
+        time_Dependency_Check_Array_Sustainment = target_df > other_df['Max Cosine']
+        for step in range(target_df.shape[0]- time_Dependency_Criterion[0]):
+            if all(np.hstack([time_Dependency_Check_Array_with_Criterion[step:step + time_Dependency_Criterion[0]],
+                            time_Dependency_Check_Array_Sustainment[step + time_Dependency_Criterion[0]:]])):
+                rt_Dict['Time_Dependent'] = (step, other_df.iloc()[step]['Max Word'])
+                break
+        
+        self.rt_Dict = rt_Dict
+        return self.rt_Dict
