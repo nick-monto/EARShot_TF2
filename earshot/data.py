@@ -135,6 +135,22 @@ class Manifest(object):
             len(target_pairs['Target'])))
         self.manifest = self.manifest.merge(target_pairs)
 
+    def add_w2v_targets(self, path_to_w2vpickle):
+        '''
+        Currently exclusive with SRV targets.
+        '''
+        w2v_df = pd.DataFrame.from_dict(pd.read_pickle(path_to_w2vpickle))
+
+        w2v_list = []
+        for word in w2v_df.keys():
+            w2v_list.append((word.upper(), w2v_df[word].to_list()))
+
+        w2v_df = pd.DataFrame(w2v_list, columns=['Word', 'W2V Target'])
+
+        w2v_training_df = self.manifest[self.manifest['Word'].isin(w2v_df['Word'])]
+        self.manifest = w2v_training_df.merge(w2v_df)
+        return self.manifest
+
     def calc_spec(self, subset=False):
         training_df = self.manifest
         try:
@@ -152,12 +168,31 @@ class Manifest(object):
         for index,row in tqdm(training_df.iterrows()):
             s = training_df.loc[index, 'Input']
             training_df.loc[index, 'Padded Input'] = pad(s, (M, s.shape[1]))
-        # pad output
-        training_df['Padded Target'] = None
-        for index,row in tqdm(training_df.iterrows()):
-            padded_target = npm.repmat(training_df.loc[index, 'Target'], M, 1)
-            training_df.loc[index, 'Padded Target'] = padded_target
-        return training_df
+        
+        try:
+            # pad output
+            training_df['Target'] # force to except if not present
+            training_df['Padded Target'] = None
+            for index,row in tqdm(training_df.iterrows()):
+                padded_target = npm.repmat(training_df.loc[index, 'Target'], M, 1)
+                training_df.loc[index, 'Padded Target'] = padded_target
+            try:
+                # pad w2v output
+                training_df['W2V Target'] # force to except if not present
+                training_df['Padded W2V Target'] = None
+                for index,row in tqdm(training_df.iterrows()):
+                    padded_target = npm.repmat(training_df.loc[index, 'W2V Target'], M, 1)
+                    training_df.loc[index, 'Padded W2V Target'] = padded_target
+                return training_df
+            except:    
+                return training_df
+        except:
+            # pad w2v output
+            training_df['Padded W2V Target'] = None
+            for index,row in tqdm(training_df.iterrows()):
+                padded_target = npm.repmat(training_df.loc[index, 'W2V Target'], M, 1)
+                training_df.loc[index, 'Padded W2V Target'] = padded_target
+            return training_df
 
     def gen_predict(self, Talker, subset=False, num_samp=100, pad_value=-9999, window_len=0.010, skip_len=0.010, max_freq=8000):
         # pull a number of random items from a specific talker for model prediction
