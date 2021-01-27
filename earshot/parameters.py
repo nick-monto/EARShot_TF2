@@ -31,7 +31,7 @@ class ModelParameters(object):
     hidden = attr.ib(kw_only=True,default={'type':'LSTM','size':512},validator=attr.validators.instance_of(dict))
     train_loss = attr.ib(kw_only=True,default='MSE',validator=attr.validators.in_(['CE','MSE']))
     optimizer = attr.ib(kw_only=True,default={'ADAM':{'beta_1':0.9,'beta_2':0.999,'epsilon':1e-07}},validator=attr.validators.instance_of(dict))
-    learning_schedule = attr.ib(kw_only=True,default={'noam':{'initial':1e-03,'warmup':4000,'minimum':1e-05}},validator=attr.validators.instance_of(dict))
+    learning_schedule = attr.ib(kw_only=True,default={'step':{'initial':1e-2,'drop_factor':0.5,'drop_every':1000}},validator=attr.validators.instance_of(dict))
 
 @attr.s
 class TrainingParameters(object):

@@ -38,12 +38,14 @@ except:
 p = ModelParameters()
 
 # instantiate model callbacks for early stopping and model checkpointing
-es = tf.keras.callbacks.EarlyStopping(monitor='loss', min_delta=0.003, patience=100) # stop early if no significant change in loss
+# es = tf.keras.callbacks.EarlyStopping(monitor='loss', min_delta=0.003, patience=250) # stop early if no significant change in loss
 filepath = './earshot/checkpoints/cp-{epoch:05d}.ckpt'
-# save a model checkpoint after every 500 epochs
+# save a model checkpoint after every 250 epochs
 # TODO might change to every k number of samples
 checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor='loss', 
-                                                verbose=1, save_freq='epoch', period=500)
+                                                verbose=1, save_freq='epoch', period=250)
+# log model training history
+csv_logger = tf.keras.callbacks.CSVLogger('./earshot/model_history_log.csv', append=True)
 
 if num_gpus > 1:
     # Instantiate mirrored strategy for training locally on multiple gpus
@@ -54,17 +56,17 @@ if num_gpus > 1:
     # sub-classed model requires length of target vector and model parameters
     with strategy.scope():
         model = EARSHOT(len(training_1k_df['Target'].iloc()[0]), p)
-        model.compile(loss=model.loss, optimizer="adam", metrics=[tf.keras.metrics.CategoricalAccuracy()], run_eagerly=False)
+        model.compile(loss=model.loss, optimizer=model.optimizer, run_eagerly=False)
 else:
         model = EARSHOT(len(training_1k_df['Target'].iloc()[0]), p)
-        model.compile(loss=model.loss, optimizer="adam", metrics=[tf.keras.metrics.CategoricalAccuracy()], run_eagerly=False)
+        model.compile(loss=model.loss, optimizer=model.optimizer, run_eagerly=False)
 
 model.fit(
     x = np.array(training_1k_df['Padded Input'].tolist()),
     y = np.array(training_1k_df['Padded Target'].tolist()),
     batch_size = total_batch,
-    epochs=10000,
-    callbacks=[checkpoint, es],
+    epochs=6000,
+    callbacks=[checkpoint, csv_logger, model.lr_sched],
     shuffle=True
 )
 

@@ -9,7 +9,7 @@ tf.keras.backend.set_floatx('float64')
 '''
 Learning rate adjustment functions.
 '''
-def noam_decay_lr(initial,warmup,minimum):
+def noam_decay_lr(warmup):
     '''
     Wrapper to define noam decay; the wrapper method allows us to make the
     lr update depend on additional parameters.
@@ -17,34 +17,35 @@ def noam_decay_lr(initial,warmup,minimum):
     The maximal learning rate under this scheme occurs at epoch = warmup, and
     will be equal to initial/warmup.
     '''
-    def schedule(epoch):
-        lr = initial*power(warmup,-0.5)*min([(epoch+1)*power(warmup,-1.5),power(epoch+1,-0.5)])
-
+    def schedule(epoch, lr):
+        # learning scheduler takes current epoch and lr as passes
+        lrate = lr*power(warmup,-0.5)*min([(epoch+1)*power(warmup,-1.5),power(epoch+1,-0.5)])
+        return lrate
     return LearningRateScheduler(schedule)
 
 
-def step_decay_lr(initial,drop_factor,drop_every):
+def step_decay_lr(initial_lr, drop_factor,drop_every):
     '''
     Wrapper that just drops the learning rate by a fixed factor (drop_factor) every drop_every
     epochs.
     '''
     def schedule(epoch):
         exp_fac = floor((1+epoch)/drop_every)
-        lr = initial*power(drop_factor,exp_fac)
-        return lr
+        lrate = initial_lr*power(drop_factor,exp_fac)
+        return lrate
 
     return LearningRateScheduler(schedule)
 
 
-def polynomial_decay_lr(initial,max_epochs,poly_pow):
+def polynomial_decay_lr(max_epochs,poly_pow):
     '''
     Wrapper that drops the learning rate to zero over max_epochs epochs, with
     shape given by poly_pow (set poly_pow = 1 to get linear decay).
     '''
-    def schedule(epoch):
+    def schedule(epoch, lr):
         decay = power((1 - (epoch/max_epochs)),poly_pow)
-        lr = initial*decay
-        return lr
+        lrate = lr*decay
+        return lrate
 
     return LearningRateScheduler(schedule)
 
@@ -90,18 +91,27 @@ class EARSHOT(Model):
             self.activation = tf.nn.tanh
 
         # set learning rate schedule
-        if self.model_parameters.learning_schedule == 'noam':
-            self.lr_sched = noam_decay_lr(**self.model_parameters['noam'])
-            learning_rate = self.model_parameters['noam']['initial']
-        elif self.model_parameters.learning_schedule == 'constant':
-            self.lr_sched = constant_lr(self.model_parameters['constant']['rate'])
-            learning_rate = self.model_parameters['constant']['rate']
+        if list(self.model_parameters.learning_schedule.keys())[0] == 'noam':
+            self.lr_sched = noam_decay_lr(self.model_parameters.learning_schedule['noam']['warmup'])
+            lr = self.model_parameters.learning_schedule['noam']['initial']
+        elif list(self.model_parameters.learning_schedule.keys())[0] == 'constant':
+            self.lr_sched = constant_lr(self.model_parameters.learning_schedule['constant']['rate'])
+            lr = self.model_parameters.learning_schedule['constant']['rate']
+        elif list(self.model_parameters.learning_schedule.keys())[0] == 'polynomial':
+            self.lr_sched = polynomial_decay_lr(self.model_parameters.learning_schedule['polynomial']['max_epochs'],
+                                                self.model_parameters.learning_schedule['polynomial']['poly_pow'])
+            lr = self.model_parameters.learning_schedule['polynomial']['initial']
+        elif list(self.model_parameters.learning_schedule.keys())[0] == 'step':
+            self.lr_sched = step_decay_lr(self.model_parameters.learning_schedule['step']['initial'],
+                                          self.model_parameters.learning_schedule['step']['drop_factor'],
+                                          self.model_parameters.learning_schedule['step']['drop_every'])
+            lr = self.model_parameters.learning_schedule['step']['initial']
 
         # optimizer
-        if self.model_parameters.optimizer == 'ADAM':
-            self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate,**tf.keras.optimizers['ADAM'])
-        elif self.model_parameters.optimizer == 'SGD':
-            self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate,**tf.keras.optimizers['SGD'])
+        if list(self.model_parameters.optimizer.keys())[0] == 'ADAM':
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr, **self.model_parameters.optimizer['ADAM'])
+        elif list(self.model_parameters.optimizer.keys())[0] == 'SGD':
+            self.optimizer = tf.keras.optimizers.SGD(learning_rate=lr, **self.model_parameters.optimizer['SGD'])
 
         self.dense_output = Dense(output_len, activation=self.activation)
 
