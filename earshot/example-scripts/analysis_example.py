@@ -28,10 +28,16 @@ model.compile(loss=model.loss, optimizer="adam", metrics=[tf.keras.metrics.Categ
 train_manifest = Manifest(path_to_wav)
 train_manifest.generate_category_dict()
 
-predict_df = training_1k_df[training_1k_df.Talker == 'JUNIOR']
+predict_df = training_1k_df[training_1k_df['Talker'].isin(['JUNIOR','AGNES'])]
 
 cosine_sims = Prediction(model, './earshot/checkpoints/cp-06000.ckpt', predict_df, training_1k_df)
 
+# plot category flow of an individual word 
+cosine_sims.plot_category_cosine('RIB_JUNIOR', train_manifest.category_dict)
+# plot category flow of the grand mean
+cosine_sims.plot_cosine_grand_mean(train_manifest.category_dict)
+
+# Calculate accuracy/rt
 accuracy = []
 e = 1000
 while e <= 6000:
@@ -52,8 +58,3 @@ accuracy_df = pd.DataFrame(accuracy, columns=['Epoch','Absolute','Relative','Tim
 
 accuracy_df.set_index('Epoch').plot.line(xlabel='Epoch',ylabel='Accuracy', ylim=(0,1), title="Threshold = 0.40; Junior tested")
 plt.show()
-
-# plot category flow of an individual word 
-cosine_sims.plot_category_cosine('RIB', train_manifest.category_dict)
-# plot category flow of the grand mean
-cosine_sims.plot_cosine_grand_mean(train_manifest.category_dict)
