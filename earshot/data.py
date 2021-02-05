@@ -237,7 +237,7 @@ class DataGenerator(Sequence):
         self.indexes = np.arange(len(self.path_list))
         self.return_seq = return_seq
         if self._spec_calc == 'padding':
-            self.inputs = np.array(self.df['Input'].tolist()).astype(np.float32)
+            self.inputs = self.df['Input'].tolist()
             self.indexes = np.arange(len(self.inputs))
 
     def __len__(self):
