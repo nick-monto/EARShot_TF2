@@ -224,9 +224,10 @@ class DataGenerator(Sequence):
         batch_size = desired batching size
         pad_value = desired value to pad data with, pads to max of each batch
         return_seq = determines generated label structure, related to model architecture
+        spec_calc = Pass 'scipy' or 'librosa' to calc specs from wav files. Pass 'padding' if you are using precomputed values and only need to batch pad.
         '''
         assert spec_calc in [
-            'scipy', 'librosa'], "Please use 'scipy' or 'librosa' to calculate spectrograms."
+            'scipy', 'librosa', 'padding'], "Please use 'scipy' or 'librosa' to calculate spectrograms."
         self._spec_calc = spec_calc
         self.df = df
         self.batch_size = batch_size
@@ -235,10 +236,16 @@ class DataGenerator(Sequence):
         self.path_list = self.df['Path'].tolist()
         self.indexes = np.arange(len(self.path_list))
         self.return_seq = return_seq
+        if self._spec_calc == 'padding':
+            self.inputs = self.df['Input'].tolist()
+            self.indexes = np.arange(len(self.inputs))
 
     def __len__(self):
         'Denotes the number of batches per epoch'
-        return int(np.floor(len(self.path_list) / self.batch_size))
+        if self._spec_calc == 'padding':
+            return int(np.floor(len(self.inputs) / self.batch_size))
+        else:
+            return int(np.floor(len(self.path_list) / self.batch_size))
 
     def __getitem__(self, index):
         'Generate one batch of data'
@@ -247,8 +254,12 @@ class DataGenerator(Sequence):
 
         # Find list of IDs
         list_pairs_temp = []
-        for k in indexes:
-            list_pairs_temp.append((self.path_list[k], self.targets[k]))
+        if self._spec_calc == 'padding':
+            for k in indexes:
+                list_pairs_temp.append((self.inputs[k], self.targets[k]))
+        else:
+            for k in indexes:
+                list_pairs_temp.append((self.path_list[k], self.targets[k]))
 
         # Generate data
         X, y = self.__data_generation(list_pairs_temp)
@@ -261,8 +272,10 @@ class DataGenerator(Sequence):
         # calculate spectrograms for each item in batch
         if self._spec_calc == 'librosa':
             spec = [ spectro_calc(path[0]) for path in list_pairs_temp ]
-        else:
+        elif self._spec_calc == 'scipy':
             spec = [ AudioTools(path[0]).sgram(0.010,0.010,8000) for path in list_pairs_temp ]
+        elif self._spec_calc == 'padding':
+            spec = [ input[0] for input in list_pairs_temp ]
         # get max len of batch
         M = max(len(a) for a in spec)
         # pad all specs in batch to max length
@@ -373,7 +386,6 @@ class Prediction(object):
     '''
     Class for generating cosine simularity dfs.
     '''
-    # TODO look to include a pass for model checkpoints
     def __init__(self, fresh_model, checkpoint_path, prediction_df, full_manifest):
         '''
         fresh_model: untrained earshot model to load weights
@@ -562,3 +574,72 @@ class Prediction(object):
             
             self.rt_Dict = rt_Dict
         return self.rt_Dict
+
+
+class PairPredictions(object):
+    '''
+    Generates cosine simularities for a selected word pair across all talkers in the set.
+    '''
+    def __init__(self, word1, word2, isi, training_df, fresh_model, checkpoint_path):
+        '''
+        word1: first word in the pair
+        word2: second word in the pair
+        isi: interstimulus interval between words in number of steps, defaults to None
+        training_df: the dataframe that containins the training data to be subsetted
+        fresh_model: an untrainined model of the same architecture to load the checkpoint onto
+        checkpoint_path: desired checkpoint to load
+        '''
+        # save unique labels for cosine calcs
+        self._unique_label_df = training_df[~training_df['Word'].duplicated()][['Word','Target']].reset_index()
+        
+        # combine two spectrograms and their targets with defined ISI // turn this into a class
+        self.word1_df = training_df[training_df['Word'].isin([word1])]
+        self.word2_df = training_df[training_df['Word'].isin([word2])]
+        assert len(self.word1_df) == len(self.word2_df)
+        word_pair_list = []
+        if isi:
+            for i in trange(len(self.word1_df)):
+                words = self.word1_df.iloc()[i]['Word'] + '_' + self.word2_df.iloc()[i]['Word']
+                isi_array_word = np.zeros((isi,self.word1_df.iloc()[i]['Input'].shape[1])) # assumes feature dimenion of equal length
+                for j in range(len(self.word2_df)):
+                    talkers = self.word1_df.iloc()[i]['Talker'] + '_' + self.word2_df.iloc()[j]['Talker']
+                    word_pair_input = np.vstack((self.word1_df.iloc()[i]['Input'], 
+                                                 isi_array_word,
+                                                 self.word2_df.iloc()[j]['Input']))
+                    word_pair_list.append([words, talkers, word_pair_input])
+        else:
+            for i in trange(len(self.word1_df)):
+                words = self.word1_df.iloc()[i]['Word'] + '_' + self.word2_df.iloc()[i]['Word']
+                for j in range(len(self.word2_df)):
+                    talkers = self.word1_df.iloc()[i]['Talker'] + '_' + self.word2_df.iloc()[j]['Talker']
+                    word_pair_input = np.vstack((self.word1_df.iloc()[i]['Input'],
+                                                 self.word2_df.iloc()[j]['Input']))
+                    word_pair_list.append([words, talkers, word_pair_input])
+
+        self.word_pair_df = pd.DataFrame(word_pair_list, columns=['Word Pair','Talkers', 'Pair Input'])
+
+        M = max(len(a) for a in self.word_pair_df['Pair Input'].tolist())
+        # pad all specs in batch to max length
+        padded_spec = [ pad(s, (M, s.shape[1]), pad_val=-9999)
+                        for s in self.word_pair_df['Pair Input'].tolist() ]
+
+
+        fresh_model.load_weights(checkpoint_path)
+
+        self.predictions = fresh_model.predict(np.array(padded_spec),
+                                               batch_size = 32,
+                                               verbose=1)
+        self.cosine_dict = self._calc_cosine()
+        
+    def _calc_cosine(self):
+        simularity_dict = {}
+        Y = np.array(self._unique_label_df['Target'].to_list()).T
+        for i in trange(len(self.predictions)):       
+            cosine_sim = []
+            x = self.predictions[i]
+            for step in x:
+                cosine_sim.append(np.dot(Y.T,step)/(np.sqrt(np.dot(step,step))*np.sqrt((Y*Y).sum(axis=0))))
+            simularity_df = pd.DataFrame(np.array(cosine_sim).reshape(x.shape[0],Y.shape[1]))
+            simularity_df.columns = np.array(self._unique_label_df['Word'].to_list()).T
+            simularity_dict[self.word_pair_df.iloc()[i]['Talkers']] = simularity_df
+        return simularity_dict
