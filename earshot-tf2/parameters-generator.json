@@ -1,8 +1,8 @@
 {
     "Pattern": {
-        "Lexicon_File": "./tests/test-pron.txt",
-        "Wav_Path": "./tests/wavs",
-        "Pattern_Path": "./tests/test-pat",
+        "Lexicon_File": "/Users/kevinbrown/projects/psycholing/earshot/results/2020.06.19/Pronunciation_Data_1K.Modified.txt",
+        "Wav_Path": "/Users/kevinbrown/data/language/speech/WAV/EARSHOT_NEW_WAVS",
+        "Pattern_Path": "Patterns",
         "Metadata_File": "METADATA.PICKLE",
 
         "Acoustic": {
@@ -23,14 +23,14 @@
             }
         },
         "Semantic": {
-            "Mode": "SRV",
+            "Mode": "PGD",
             "SRV": {
                 "Size": 300,
                 "Assign_Number": 30
             },
             "PGD": {
                 "Size": 300,
-                "Dict_File_Path": "need-to-set.pydb"
+                "Dict_File_Path": "/Users/kevinbrown/projects/psycholing/earshot/results/2020.06.19/EARSHOT-1K-Modified-scrambled-semvec.pydb"
             }
         }
     }
