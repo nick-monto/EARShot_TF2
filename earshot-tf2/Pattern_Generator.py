@@ -240,6 +240,8 @@ if __name__ == '__main__':
 
     file_List = Get_File_List()
 
+    print(semantic_Dict)
+
     with PE(max_workers = max_Worker) as pe:
         for word, pronunciation, talker, voice_File_Path in file_List:
             pe.submit(

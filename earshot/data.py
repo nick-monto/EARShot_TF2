@@ -161,14 +161,14 @@ class Manifest(object):
         training_df['Input'] = None
         for index,row in tqdm(training_df.iterrows()):
             training_df.loc[index, 'Input'] = AudioTools(training_df['Path'][index]).sgram(0.010,0.010,8000)
-  
+
         training_df['Padded Input'] = None
         # get max len of batch
         M = max(len(a) for a in training_df['Input'].tolist())
         for index,row in tqdm(training_df.iterrows()):
             s = training_df.loc[index, 'Input']
             training_df.loc[index, 'Padded Input'] = pad(s, (M, s.shape[1]))
-        
+
         try:
             # pad output
             training_df['Target'] # force to except if not present
@@ -184,7 +184,7 @@ class Manifest(object):
                     padded_target = npm.repmat(training_df.loc[index, 'W2V Target'], M, 1)
                     training_df.loc[index, 'Padded W2V Target'] = padded_target
                 return training_df
-            except:    
+            except:
                 return training_df
         except:
             # pad w2v output
@@ -206,7 +206,7 @@ class Manifest(object):
         for index, row in tqdm(predict_df.iterrows()):
             predict_df.loc[index, 'Input'] = AudioTools(predict_df['Path'][index]).sgram(window_len,skip_len,max_freq)
         M = max(len(a) for a in predict_df['Input'].tolist())
-        
+
         predict_df['Padded Input'] = None
         for index, row in predict_df.iterrows():
             s = predict_df.loc[index, 'Input']
@@ -407,7 +407,7 @@ class Prediction(object):
         self.cosine_sim_dict = self._calc_cosine()
 
     def _calc_cosine(self):
-            
+
         # calculate cosine similarity of each prediction
         # at each time step
         # to every word in the training vocab
@@ -415,7 +415,7 @@ class Prediction(object):
         # compute cosine simularity at each timestep against each word in vocab
         # output rows = timestep, columns = word, cell value = cosine simularity
         # this method currently overrides duplicate targets in dictionary with most recent in set
-        # TODO tag duplicates before assigning key in dict; cat cat1 cat2 etc 
+        # TODO tag duplicates before assigning key in dict; cat cat1 cat2 etc
         simularity_dict = {}
         Y = np.array(self.unique_label_df['Target'].to_list()).T
         for i in trange(len(self.predictions)):
@@ -431,9 +431,10 @@ class Prediction(object):
                 simularity_dict["{0}".format(self.prediction_df['Word'].iloc()[i])] = simularity_df
         return simularity_dict
 
-    def plot_category_cosine(self, target_word, category_dict):
+
+    def calc_category_cosine(self, target_word, category_dict):
         '''
-        target_word: select word to plot from .cosine_sim_dict.keys()
+        target_word: select word to compute similarities to
         category_dict: pass a category dictionary generated from Manifest.generate_category_dict()
         '''
         cosine_category_df = pd.DataFrame()
@@ -444,10 +445,22 @@ class Prediction(object):
         else:
             for i in list(category_dict[target_word].keys()):
                 cosine_category_df[i] = self.cosine_sim_dict[target_word][category_dict[target_word][i]].mean(axis=1)
+        return cosine_category_df
+
+
+    def plot_category_cosine(self, target_word, cosine_category_df):
+        '''
+        target_word: select word to plot from .cosine_sim_dict.keys()
+        category_dict: pass the output of .calc_category_cosine()
+        '''
         lines = cosine_category_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', ylim=(0,1), title=target_word)
         return plt.show()
-    
-    def plot_cosine_grand_mean(self, category_dict):
+
+
+    def calc_cosine_grand_mean(self,category_dict):
+        '''
+        Category cosines/flows, averaged over all targets in the training lexicon.
+        '''
         target_df = pd.DataFrame()
         cohort_df = pd.DataFrame()
         rhyme_df = pd.DataFrame()
@@ -459,7 +472,7 @@ class Prediction(object):
                 word_talker = word.split('_')
                 category_df = pd.DataFrame()
                 for i in list(category_dict[word_talker[0]].keys()):
-                    category_df[i] = self.cosine_sim_dict[word][category_dict[word_talker[0]][i]].mean(axis=1)    
+                    category_df[i] = self.cosine_sim_dict[word][category_dict[word_talker[0]][i]].mean(axis=1)
                 target_df[word] = category_df['Target']
                 cohort_df[word] = category_df['Cohort']
                 rhyme_df[word] = category_df['Rhyme']
@@ -468,7 +481,7 @@ class Prediction(object):
             else:
                 category_df = pd.DataFrame()
                 for i in list(category_dict[word].keys()):
-                    category_df[i] = self.cosine_sim_dict[word][category_dict[word][i]].mean(axis=1)    
+                    category_df[i] = self.cosine_sim_dict[word][category_dict[word][i]].mean(axis=1)
                 target_df[word] = category_df['Target']
                 cohort_df[word] = category_df['Cohort']
                 rhyme_df[word] = category_df['Rhyme']
@@ -481,9 +494,19 @@ class Prediction(object):
         mean_cosine_df['Rhyme'] = rhyme_df.mean(axis=1)
         mean_cosine_df['DAS Neighborhood'] = neighborhood_df.mean(axis=1)
         mean_cosine_df['Unrelated'] = unrelated_df.mean(axis=1)
-        self.mean_cosine_df = mean_cosine_df
+        # this line was in Nick's original plotting function, but we never use self.mean_cosine_df, so
+        #   I'm not sure it really needs to be promoted to a member variable
+        # self.mean_cosine_df = mean_cosine_df
+        return mean_cosine_df
+
+
+    def plot_cosine_grand_mean(self, mean_cosine_df):
+        '''
+        Makes the plot once you've produced mean_cosine_df.
+        '''
         mean_cosine_df.plot.line(xlabel='Time Steps',ylabel='Cosine Simularity', ylim=(0,1), title="Cosine Simularity Grand Mean")
         return plt.show()
+
 
     def gen_RT(self, word, prediction_df, abs_threshold=0.4, rel_threshold=0.05, time_threshold=10):
         '''
@@ -535,7 +558,7 @@ class Prediction(object):
                                  time_Dependency_Check_Array_Sustainment[step + time_Dependency_Criterion[0]:]])):
                     rt_Dict['Time_Dependent'] = (step, other_df.iloc()[step]['Max Word'])
                     break
-            
+
             self.rt_Dict = rt_Dict
         else:
             # limit to true word length
@@ -571,7 +594,7 @@ class Prediction(object):
                                  time_Dependency_Check_Array_Sustainment[step + time_Dependency_Criterion[0]:]])):
                     rt_Dict['Time_Dependent'] = (step, other_df.iloc()[step]['Max Word'])
                     break
-            
+
             self.rt_Dict = rt_Dict
         return self.rt_Dict
 
@@ -591,7 +614,7 @@ class PairPredictions(object):
         '''
         # save unique labels for cosine calcs
         self._unique_label_df = training_df[~training_df['Word'].duplicated()][['Word','Target']].reset_index()
-        
+
         # combine two spectrograms and their targets with defined ISI // turn this into a class
         self.word1_df = training_df[training_df['Word'].isin([word1])]
         self.word2_df = training_df[training_df['Word'].isin([word2])]
@@ -603,7 +626,7 @@ class PairPredictions(object):
                 isi_array_word = np.zeros((isi,self.word1_df.iloc()[i]['Input'].shape[1])) # assumes feature dimenion of equal length
                 for j in range(len(self.word2_df)):
                     talkers = self.word1_df.iloc()[i]['Talker'] + '_' + self.word2_df.iloc()[j]['Talker']
-                    word_pair_input = np.vstack((self.word1_df.iloc()[i]['Input'], 
+                    word_pair_input = np.vstack((self.word1_df.iloc()[i]['Input'],
                                                  isi_array_word,
                                                  self.word2_df.iloc()[j]['Input']))
                     word_pair_list.append([words, talkers, word_pair_input])
@@ -630,11 +653,11 @@ class PairPredictions(object):
                                                batch_size = 32,
                                                verbose=1)
         self.cosine_dict = self._calc_cosine()
-        
+
     def _calc_cosine(self):
         simularity_dict = {}
         Y = np.array(self._unique_label_df['Target'].to_list()).T
-        for i in trange(len(self.predictions)):       
+        for i in trange(len(self.predictions)):
             cosine_sim = []
             x = self.predictions[i]
             for step in x:

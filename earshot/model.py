@@ -1,6 +1,6 @@
 from numpy import power,min,max,floor
 import tensorflow as tf
-from tensorflow.keras import Model, Sequential, optimizers
+from tensorflow.keras import Model, Sequential, optimizers, losses
 from tensorflow.keras.layers import Dense, GRU, Input, Masking, LSTM
 from tensorflow.keras.callbacks import LearningRateScheduler
 
@@ -84,10 +84,10 @@ class EARSHOT(Model):
 
         # loss function and output activation are coupled, this sets them both
         if self.model_parameters.train_loss == 'CE':
-            self.loss = "binary_crossentropy"
+            self.loss = losses.BinaryCrossentropy(from_logits=True)
             self.activation = tf.nn.sigmoid
         elif self.model_parameters.train_loss == 'MSE':
-            self.loss = "mean_squared_error"
+            self.loss = losses.MeanSquaredError()
             self.activation = tf.nn.tanh
 
         # set learning rate schedule
